@@ -11,13 +11,16 @@ logger = logging.getLogger(__name__)
 
 CONFIG = {
     'RESULT_EXPIRES': 15,  # 15 secs
+    'broker_connection_retry_on_startup': True
 }
 
-app = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0', config_source=CONFIG)
+app = Celery('tasks', 
+             broker='redis://localhost:6379/0', 
+             backend='redis://localhost:6379/0', 
+             config_source=CONFIG)
 
 
 @app.task(
-    name="new_crawl_job",
     bind=True
 )
 def new_crawl_job(self: Task, params: dict[str,Any]):
@@ -26,13 +29,10 @@ def new_crawl_job(self: Task, params: dict[str,Any]):
         app.send_task("tasks.hello", [str(url)])
     return self.request.id
 
-
-@app.task(
-    bind=True
-)
+@app.task
 def hello(param: str):
     logger.info("Starting hello task :)")
-    app.send_task("tasks.hello_brothers_and_sisters", [param])
+    app.send_task("crawlers.tasks.hello_brothers_and_sisters", [param])
     return {"url": param}
 
 
@@ -50,7 +50,6 @@ def hello_brothers_and_sisters(self: Task, param: str):
 
 
 @app.task(
-    name="crawl_amazon_product",
     soft_time_limit=60,
     default_retry_delay=10,
     max_retries=3)
@@ -60,4 +59,4 @@ def crawl_amazon_product_task(url: str, *, params: dict[str, Any]):
         return crawl_amazon_product(url, amazon_params)
     except Exception as e:
         logger.error(e)
-        crawl_amazon_product_task.retry()
+        getattr(crawl_amazon_product_task,'retry')()

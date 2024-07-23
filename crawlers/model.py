@@ -53,6 +53,9 @@ class InvalidUrlException(Exception):
 
 
 class CrawlJobInput(BaseModel):
+    """
+        Crawl job Representation. Contains mainly a set of urls.
+    """
     urls: set[ValidAmazonUrl]
     params: Optional[AmazonParams] = None
 
