@@ -28,6 +28,13 @@ build-backend = "poetry.core.masonry.api"
 pythonpath = [
     '.'
 ]
+
 testpaths = [
     "tests",
 ]
+
+[tool.poe.tasks]
+startdev = "docker compose -f docker/docker-compose.yml up -d"
+startcelery = "celery -A crawlers.tasks  worker --loglevel=INFO"
+stopdev = "docker compose -f docker/docker-compose.yml down"
+
