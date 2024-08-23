@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from pydantic import BaseModel, AnyHttpUrl, AfterValidator
+from pydantic import AfterValidator, AnyHttpUrl, BaseModel
 from typing_extensions import Annotated
 
 from crawlers.amazon.amazon_params import AmazonParams
@@ -35,14 +35,22 @@ allowed_hosts = [
 amazon_url_asin_path = re.compile(r'.*/dp/[A-Z0-9]{10}.*')
 
 
-def check_amazon_valid_url(url: AnyHttpUrl):
+def check_amazon_valid_url(url: AnyHttpUrl) -> None:
     if url.scheme != 'https':
-        raise InvalidUrlException(f'Url {url} is invalid. Only url with https scheme are valid.')
+        raise InvalidUrlException(
+            f'Url {url} is invalid. Only url with https scheme are valid.'
+        )
+
     if url.host not in allowed_hosts:
-        domains = ",\n".join(allowed_hosts)
-        raise InvalidUrlException(f'''Url {url} is invalid. Valid domain are one of \n{domains}''')
+        domains = ',\n'.join(allowed_hosts)
+        raise InvalidUrlException(
+            f"""Url {url} is invalid. Valid domain are one of \n{domains}"""
+        )
+
     if url.path and not amazon_url_asin_path.match(url.path):
-        raise InvalidUrlException(f"Url {url} is invalid. Url must be an Amazon product page url")
+        raise InvalidUrlException(
+            f'Url {url} is invalid. Url must be an Amazon product page url'
+        )
 
 
 ValidAmazonUrl = Annotated[AnyHttpUrl, AfterValidator(check_amazon_valid_url)]
@@ -54,10 +62,16 @@ class InvalidUrlException(Exception):
 
 class CrawlJobInput(BaseModel):
     """
-        Crawl job Representation. Contains mainly a set of urls.
+    Crawl job Representation. Contains mainly a set of urls.
     """
+
     urls: set[ValidAmazonUrl]
     params: Optional[AmazonParams] = None
+
+
+class CrawlJobInput2(BaseModel):
+    job_id: str
+    urls: set[str]
 
 
 class CrawlJob(CrawlJobInput):
