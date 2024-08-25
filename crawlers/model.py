@@ -35,7 +35,7 @@ allowed_hosts = [
 amazon_url_asin_path = re.compile(r'.*/dp/[A-Z0-9]{10}.*')
 
 
-def check_amazon_valid_url(url: AnyHttpUrl) -> None:
+def check_amazon_valid_url(url: AnyHttpUrl) -> Optional[AnyHttpUrl]:
     if url.scheme != 'https':
         raise InvalidUrlException(
             f'Url {url} is invalid. Only url with https scheme are valid.'
@@ -51,6 +51,7 @@ def check_amazon_valid_url(url: AnyHttpUrl) -> None:
         raise InvalidUrlException(
             f'Url {url} is invalid. Url must be an Amazon product page url'
         )
+    return url
 
 
 ValidAmazonUrl = Annotated[AnyHttpUrl, AfterValidator(check_amazon_valid_url)]
@@ -65,7 +66,7 @@ class CrawlJobInput(BaseModel):
     Crawl job Representation. Contains mainly a set of urls.
     """
 
-    urls: set[ValidAmazonUrl]
+    urls: set[ValidAmazonUrl] = set()
     params: Optional[AmazonParams] = None
 
 

@@ -1,5 +1,5 @@
 import pytest
-from pydantic import AnyUrl
+from pydantic import AnyUrl, HttpUrl
 
 from crawlers.model import CrawlJobInput, InvalidUrlException
 
@@ -60,3 +60,12 @@ def test_validate_urls_from_amazon() -> None:
         'Url https://www.amazon.co.uk/Shark-FlexBreeze-High-Velocity-Water-Resistant-FA220UK/dp/BAD?ref=dlx_deals_dg_dcl_B0CSSZ5SJF_dt_sl14_86 '
         'is invalid. Url must be an Amazon product page url'
     )
+
+
+def test_crawl_job_input_with_valid_urls() -> None:
+    job = CrawlJobInput(
+        urls={
+            AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
+        }
+    )
+    assert job.urls.pop() == AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5')

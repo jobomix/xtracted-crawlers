@@ -54,6 +54,7 @@ disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = [
+    "redis.*",
     "fastapi.*",
     "asyncpg.*",
     "pydantic.*",
