@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import AfterValidator, AnyHttpUrl, BaseModel
 from typing_extensions import Annotated
 
-from crawlers.amazon.amazon_params import AmazonParams
+from xtracted.crawlers.amazon.amazon_params import AmazonParams
 
 allowed_hosts = [
     'www.amazon.com.au',

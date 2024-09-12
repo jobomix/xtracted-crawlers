@@ -15,6 +15,12 @@ async def start() -> None:
     consuming.add_done_callback(background_tasks.discard)
 
 
+async def main() -> None:
+    await start()
+    bg_task = background_tasks.pop()
+    await bg_task
+
+
 async def stop() -> None:
     global started
     started = False
@@ -24,6 +30,7 @@ async def consume() -> None:
     client = redis.StrictRedis(decode_responses=True)
 
     while True:
+        print('Waiting for new event ...')
         r = await client.xread(streams={'crawl': '$'}, count=1, block=1000)
         if len(r) == 1:
             res = r[0][1]
@@ -33,10 +40,11 @@ async def consume() -> None:
             context = await client.hgetall(f'job:{job_id}:{url}')  # type: ignore
             context['status'] = 'STARTED'
             await client.hset(name=f'job:{job_id}:{url}', mapping=context)  # type: ignore
+            # long running job ...
         if not started:
             await asyncio.sleep(1)
             break
 
 
 if __name__ == '__main__':
-    asyncio.run(start())
+    asyncio.run(main())

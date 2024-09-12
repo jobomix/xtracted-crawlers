@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import Page, sync_playwright
 
-from crawlers.amazon.amazon_params import AmazonParams
+from xtracted.crawlers.amazon.amazon_params import AmazonParams
 
 
 def extract_root_url(url: str) -> str | None:

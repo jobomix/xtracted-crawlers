@@ -2,7 +2,7 @@ import uuid
 
 import redis.asyncio as redis
 
-from crawlers.model import CrawlJobInput
+from xtracted.crawlers.model import CrawlJobInput
 
 
 async def submit(job: CrawlJobInput) -> str:

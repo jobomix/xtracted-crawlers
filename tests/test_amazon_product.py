@@ -2,8 +2,11 @@ import pathlib
 
 from snapshottest.pytest import PyTestSnapshotTest
 
-from crawlers.amazon.amazon_params import AmazonParams
-from crawlers.amazon.amazon_product import crawl_amazon_product, extract_root_url
+from xtracted.crawlers.amazon.amazon_params import AmazonParams
+from xtracted.crawlers.amazon.amazon_product import (
+    crawl_amazon_product,
+    extract_root_url,
+)
 
 filepath = pathlib.Path(__file__).resolve().parent
 

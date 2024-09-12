@@ -1,7 +1,7 @@
 import pytest
-from pydantic import AnyUrl, HttpUrl
+from pydantic import AnyUrl
 
-from crawlers.model import CrawlJobInput, InvalidUrlException
+from xtracted.crawlers.model import CrawlJobInput, InvalidUrlException
 
 
 def test_urls_must_be_on_of_amazon_domain() -> None:

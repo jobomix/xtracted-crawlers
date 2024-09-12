@@ -1,12 +1,11 @@
 import asyncio
 
 from pydantic import AnyUrl
-from redis import client
 from redis.asyncio.client import Redis
 
-from crawlers.job_producer import submit
-from crawlers.model import CrawlJobInput
-from workers import redis_worker
+from xtracted.crawlers.job_producer import submit
+from xtracted.crawlers.model import CrawlJobInput
+from xtracted.workers import redis_worker
 
 
 async def test_crawl_job_appended_to_redis_stream(redis_client: Redis) -> None:
@@ -49,7 +48,6 @@ async def test_consumer(redis_client: Redis) -> None:
             }
         )
     )
-    await asyncio.sleep(1)
     await redis_worker.stop()
     context = await redis_client.hgetall(
         f'job:{job_id}:https://www.amazon.co.uk/dp/B0931VRJT5'
