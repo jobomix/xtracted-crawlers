@@ -24,6 +24,7 @@ pytest-docker = "^3.1.1"
 pyright = "^1.1.377"
 ruff = "^0.6.2"
 mypy = "^1.11.1"
+poethepoet = "^0.29.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -35,9 +36,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.poe.tasks]
-startdev = "docker compose -f docker/docker-compose.yml up -d"
-startcelery = "celery -A crawlers.tasks  worker --loglevel=INFO"
-stopdev = "docker compose -f docker/docker-compose.yml down"
+worker = "python -m xtracted.workers.crawl_job_worker"
 
 
 # ----

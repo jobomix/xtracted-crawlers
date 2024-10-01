@@ -1,15 +1,18 @@
 import asyncio
 
 from pydantic import AnyUrl
+from redis.asyncio import StrictRedis
 from redis.asyncio.client import Redis
 
-from xtracted.crawlers.job_producer import submit
+from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
 from xtracted.crawlers.model import CrawlJobInput
-from xtracted.workers import redis_worker
+from xtracted.workers.crawl_job_worker import CrawlJobWorker
 
 
 async def test_crawl_job_appended_to_redis_stream(redis_client: Redis) -> None:
-    await submit(
+    producer = CrawlJobProducer(client=redis_client)
+
+    await producer.submit(
         CrawlJobInput(
             urls={
                 AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
@@ -25,7 +28,9 @@ async def test_crawl_job_appended_to_redis_stream(redis_client: Redis) -> None:
 
 
 async def test_crawl_job_submit_create_context(redis_client: Redis) -> None:
-    job_id = await submit(
+    producer = CrawlJobProducer(client=redis_client)
+
+    job_id = await producer.submit(
         CrawlJobInput(
             urls={
                 AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
@@ -39,16 +44,19 @@ async def test_crawl_job_submit_create_context(redis_client: Redis) -> None:
 
 
 async def test_consumer(redis_client: Redis) -> None:
-    await redis_worker.start()
+    worker = CrawlJobWorker(client=StrictRedis(decode_responses=True))
+    producer = CrawlJobProducer(client=redis_client)
+
+    await worker.start()
     await asyncio.sleep(1)
-    job_id = await submit(
+    job_id = await producer.submit(
         CrawlJobInput(
             urls={
                 AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
             }
         )
     )
-    await redis_worker.stop()
+    await worker.stop()
     context = await redis_client.hgetall(
         f'job:{job_id}:https://www.amazon.co.uk/dp/B0931VRJT5'
     )  # type: ignore
