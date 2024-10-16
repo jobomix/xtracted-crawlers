@@ -1,8 +1,10 @@
+import asyncio
 import uuid
 
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
 
+from xtracted.configuration import XtractedConfig, XtractedConfigFromDotEnv
 from xtracted.crawlers.model import CrawlJobInput
 
 
@@ -27,3 +29,15 @@ class CrawlJobProducer:
 
     async def close(self) -> None:
         await self.client.aclose()
+
+
+if __name__ == '__main__':
+    config = XtractedConfigFromDotEnv()
+    producer = CrawlJobProducer(
+        client=RedisCluster.from_url(
+            str(config.random_cluster_url()), decode_responses=True
+        )
+    )
+    asyncio.run(
+        producer.submit(CrawlJobInput(urls={'https://www.amazon.co.uk/dp/B0931VRJT5'}))
+    )

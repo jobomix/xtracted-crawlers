@@ -85,8 +85,12 @@ def crawl_amazon_product(url: str, amazon_params: AmazonParams) -> dict[str, Any
 
 
 if __name__ == '__main__':
+    # res = crawl_amazon_product(
+    #     'file:///data/dev/xtracted/crawlers-python/tests/en_GB/gopro.html',
+    #     AmazonParams(with_variants=True),
+    # )
     res = crawl_amazon_product(
-        'file:///data/dev/xtracted/crawlers-python/tests/en_GB/gopro.html',
+        'https://www.amazon.co.uk/BenQ-GW2490E-Monitor-Full-HD-Eye-Care/dp/B0CT5R7XXL/ref=pd_ci_mcx_mh_mcx_views_1?pd_rd_w=jQdaJ&content-id=amzn1.sym.2ddb7b00-379e-47b0-93b5-ad8e369c4ba1%3Aamzn1.symc.45dc5f4c-d617-4dba-aa26-2cadef3da899&pf_rd_p=2ddb7b00-379e-47b0-93b5-ad8e369c4ba1&pf_rd_r=RAZAQEJYD18V1CHS134P&pd_rd_wg=PqAEY&pd_rd_r=2e7d2762-9ab8-499f-a336-17dbf2daeceb&pd_rd_i=B0CT5R7XXL',
         AmazonParams(with_variants=True),
     )
     print(res)

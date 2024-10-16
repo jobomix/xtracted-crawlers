@@ -56,6 +56,7 @@ async def test_consumer(redis_client: Redis) -> None:
             }
         )
     )
+    await asyncio.sleep(1)
     await worker.stop()
     context = await redis_client.hgetall(
         f'job:{job_id}:https://www.amazon.co.uk/dp/B0931VRJT5'
