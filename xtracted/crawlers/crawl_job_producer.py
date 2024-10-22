@@ -4,8 +4,8 @@ import uuid
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
 
-from xtracted.configuration import XtractedConfig, XtractedConfigFromDotEnv
-from xtracted.crawlers.model import CrawlJobInput
+from xtracted.configuration import XtractedConfigFromDotEnv
+from xtracted.model import CrawlJobInput
 
 
 class CrawlJobProducer:

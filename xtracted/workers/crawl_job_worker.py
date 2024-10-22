@@ -53,11 +53,7 @@ class CrawlJobWorker:
 
 if __name__ == '__main__':
     config = XtractedConfigFromDotEnv()
-    worker = CrawlJobWorker(
-        client=RedisCluster.from_url(
-            str(config.random_cluster_url()), decode_responses=True
-        )
-    )
+    worker = CrawlJobWorker(client=config.new_client())
     with asyncio.Runner() as runner:
         try:
             runner.run(worker.main())

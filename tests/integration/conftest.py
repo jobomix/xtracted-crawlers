@@ -3,10 +3,18 @@ from typing import Any, AsyncGenerator
 
 import pytest
 import redis.asyncio as redis
+from pydantic import RedisDsn
 from pytest_docker.plugin import Services
 from redis.asyncio.client import Redis
 
+from xtracted.configuration import XtractedConfig
+from xtracted.queue import Queue, RedisQueue
+
 logger = logging.getLogger(__name__)
+
+
+class TestConfig(XtractedConfig):
+    redis_cluster_url: RedisDsn = 'redis://'  # type: ignore
 
 
 def is_reponsive() -> bool:
@@ -35,3 +43,13 @@ async def redis_client(default_stack: Any) -> AsyncGenerator[Redis, Any]:
     yield client
     await client.flushall()
     await client.aclose()
+
+
+@pytest.fixture(scope='session')
+async def conf() -> AsyncGenerator[TestConfig, Any]:
+    yield TestConfig()
+
+
+@pytest.fixture(scope='session')
+async def queue(conf: TestConfig) -> AsyncGenerator[Queue, Any]:
+    yield RedisQueue(conf)

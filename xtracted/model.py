@@ -1,7 +1,13 @@
 import re
+from enum import Enum
 from typing import Optional
 
-from pydantic import AfterValidator, AnyHttpUrl, BaseModel
+from pydantic import (
+    AfterValidator,
+    AnyHttpUrl,
+    BaseModel,
+    Json,
+)
 from typing_extensions import Annotated
 
 from xtracted.crawlers.amazon.amazon_params import AmazonParams
@@ -57,6 +63,21 @@ def check_amazon_valid_url(url: AnyHttpUrl) -> Optional[AnyHttpUrl]:
 ValidAmazonUrl = Annotated[AnyHttpUrl, AfterValidator(check_amazon_valid_url)]
 
 
+class CrawlUrlStatus(str, Enum):
+    complete = 'complete'
+    error = 'error'
+    pending = 'pending'
+    running = 'running'
+
+
+class CrawlJobStatus(str, Enum):
+    complete = 'complete'
+    error = 'error'
+    cancelled = 'cancelled'
+    running = 'running'
+    pending = 'pending'
+
+
 class InvalidUrlException(Exception):
     pass
 
@@ -70,10 +91,21 @@ class CrawlJobInput(BaseModel):
     params: Optional[AmazonParams] = None
 
 
-class CrawlJobInput2(BaseModel):
-    job_id: str
-    urls: set[str]
+class CrawlUrl(BaseModel):
+    crawl_url_id: str
+    url: AnyHttpUrl
+    status: CrawlUrlStatus = CrawlUrlStatus.pending
+    retries: int = 0
+    extracted: Json = '{}'
+
+    def __hash__(self) -> int:
+        return self.crawl_url_id.__hash__()
 
 
-class CrawlJob(CrawlJobInput):
+class CrawlJob(BaseModel):
     job_id: str
+    status: CrawlJobStatus
+    urls: set[CrawlUrl] = set()
+
+    def __hash__(self) -> int:
+        return self.job_id.__hash__()

@@ -5,7 +5,7 @@ from redis.asyncio import StrictRedis
 from redis.asyncio.client import Redis
 
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
-from xtracted.crawlers.model import CrawlJobInput
+from xtracted.model import CrawlJobInput
 from xtracted.workers.crawl_job_worker import CrawlJobWorker
 
 

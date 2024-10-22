@@ -36,11 +36,14 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.poe.tasks]
-worker = "python -m xtracted.workers.crawl_job_worker"
+crawl_job_worker = "python -m xtracted.workers.crawl_job_worker"
+local_redis = "docker run --rm --name local-redis -p 6379:6379 redis"
 
 [tool.poe.tasks.remove_keys]
-script = "xtracted.utils.redis_management:remove_keys()"
+script = "xtracted.utils.redis_management:remove_keys"
 
+[tool.poe.tasks.send_message]
+script = "xtracted.utils.redis_management:send_message"
 
 # ----
 # mypy
