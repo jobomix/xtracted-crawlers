@@ -1,12 +1,12 @@
 import re
 from enum import Enum
-from typing import Optional
+from typing import Generator, Optional
 
 from pydantic import (
     AfterValidator,
     AnyHttpUrl,
+    AnyUrl,
     BaseModel,
-    Json,
 )
 from typing_extensions import Annotated
 
@@ -72,8 +72,6 @@ class CrawlUrlStatus(str, Enum):
 
 class CrawlJobStatus(str, Enum):
     complete = 'complete'
-    error = 'error'
-    cancelled = 'cancelled'
     running = 'running'
     pending = 'pending'
 
@@ -91,21 +89,78 @@ class CrawlJobInput(BaseModel):
     params: Optional[AmazonParams] = None
 
 
+class CrawlJobFreeInput(CrawlJobInput):
+    urls: set[AnyUrl] = set()
+
+
 class CrawlUrl(BaseModel):
     crawl_url_id: str
-    url: AnyHttpUrl
+    url: AnyUrl
     status: CrawlUrlStatus = CrawlUrlStatus.pending
     retries: int = 0
-    extracted: Json = '{}'
+
+    def get_job_id(self) -> str:
+        split = self.crawl_url_id.split(':')
+        return split[1]
+
+    def get_url_id_suffix(self) -> str:
+        split = self.crawl_url_id.split(':')
+        return split[2]
 
     def __hash__(self) -> int:
         return self.crawl_url_id.__hash__()
+
+    @staticmethod
+    def extract_url_id_suffix(crawl_url_id: str) -> str:
+        split = crawl_url_id.split(':')
+        return split[-1]
 
 
 class CrawlJob(BaseModel):
     job_id: str
     status: CrawlJobStatus
     urls: set[CrawlUrl] = set()
+
+    def _filter_url_by_status(
+        self, status: CrawlUrlStatus
+    ) -> Generator[CrawlUrl, None, None]:
+        return (url for url in self.urls if url.status == status)
+
+    def get_pending_urls(self) -> Generator[CrawlUrl, None, None]:
+        return self._filter_url_by_status(CrawlUrlStatus.pending)
+
+    def get_running_urls(self) -> Generator[CrawlUrl, None, None]:
+        return self._filter_url_by_status(CrawlUrlStatus.running)
+
+    def get_completed_urls(self) -> Generator[CrawlUrl, None, None]:
+        return self._filter_url_by_status(CrawlUrlStatus.complete)
+
+    def get_failed_urls(self) -> Generator[CrawlUrl, None, None]:
+        return self._filter_url_by_status(CrawlUrlStatus.error)
+
+    def get_status(self) -> CrawlJobStatus:
+        complete = 0
+        error = 0
+        running = 0
+        pending = 0
+
+        for url in self.urls:
+            match url.status:
+                case CrawlUrlStatus.pending:
+                    pending += 1
+                case CrawlUrlStatus.running:
+                    running += 1
+                case CrawlUrlStatus.complete:
+                    complete += 1
+                case CrawlUrlStatus.error:
+                    error += 1
+
+        if running > 0:
+            return CrawlJobStatus.running
+        elif pending == 0 and running == 0:
+            return CrawlJobStatus.complete
+        else:
+            return CrawlJobStatus.pending
 
     def __hash__(self) -> int:
         return self.job_id.__hash__()

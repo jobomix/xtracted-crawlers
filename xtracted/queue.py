@@ -1,7 +1,6 @@
-import asyncio
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 from redis.asyncio import ResponseError
 
@@ -16,19 +15,19 @@ from xtracted.model import (
 
 class Queue(ABC):
     @abstractmethod
-    async def submit_crawl_job(self, crawlJobInput: CrawlJobInput) -> CrawlJob:
+    async def ack(self, msg_id: str) -> None:
         pass
 
     @abstractmethod
-    def enqueue(self) -> None:
+    async def submit_crawl_job(self, crawl_job_input: CrawlJobInput) -> CrawlJob:
+        pass
+
+    @abstractmethod
+    async def enqueue(self) -> None:
         pass
 
     @abstractmethod
     async def get_crawl_job(self, job_id: str) -> Optional[CrawlJob]:
-        pass
-
-    @abstractmethod
-    async def consume(self, consumer: str) -> Optional[CrawlUrl]:
         pass
 
 
@@ -54,16 +53,24 @@ class RedisQueue(Queue):
         import json
 
         json_model = crawl_url.model_dump_json()
+        dict_model = json.loads(json_model)
+
         return cast(
             dict[
                 bytes | memoryview | str | int | float,
                 bytes | memoryview | str | int | float,
             ],
-            json.loads(json_model),
+            dict_model,
         )
+
+    async def ack(self, msg_id: str) -> None:
+        redis = self.config.new_client()
+        await redis.xack('crawl', 'crawlers', msg_id)
+        await redis.aclose()
 
     async def get_crawl_job(self, job_id: str) -> Optional[CrawlJob]:
         redis = self.config.new_client()
+        crawl_job = None
         try:
             ucnt = await redis.get(f'ucnt:{job_id}')
             if ucnt:
@@ -76,7 +83,7 @@ class RedisQueue(Queue):
             await redis.aclose()
         return crawl_job
 
-    async def submit_crawl_job(self, jobInput: CrawlJobInput) -> CrawlJob:
+    async def submit_crawl_job(self, crawl_job_input: CrawlJobInput) -> CrawlJob:
         job_id = str(uuid.uuid1())
         redis = self.config.new_client()
         crawl_job = CrawlJob(job_id=job_id, status=CrawlJobStatus.pending)
@@ -84,14 +91,14 @@ class RedisQueue(Queue):
         await redis.set(f'ucnt:{crawl_job.job_id}', '0')
 
         # add those urls to the main crawl stream
-        for url in jobInput.urls:
+        for url in crawl_job_input.urls:
             ucnt = await redis.get(f'ucnt:{crawl_job.job_id}')
 
             await redis.zadd(f'job:{job_id}:pending', {str(ucnt): ucnt})
 
             crawl_url = CrawlUrl(
                 crawl_url_id=f'crawl_url:{job_id}:{ucnt}',
-                url=url.__str__(),
+                url=url,
             )
 
             url_mapping = self._crawl_url_to_redis_hset(crawl_url)
@@ -109,26 +116,5 @@ class RedisQueue(Queue):
         await redis.aclose()
         return crawl_job
 
-    def enqueue(self) -> None:
+    async def enqueue(self) -> None:
         pass
-
-    async def consume(self, consumer: str) -> Optional[CrawlUrl]:
-        redis = self.config.new_client()
-        res = await redis.xreadgroup(
-            groupname='crawlers',
-            consumername=consumer,
-            streams={'crawl': '>'},
-            count=1,
-            block=5000,
-            noack=False,
-        )
-
-        if res and len(res) == 1:
-            x = res[0][1]
-            mapping = x[0][1]
-            await redis.xack('crawl', 'crawlers', x[0][0])
-            await redis.aclose()
-            return CrawlUrl(**mapping)
-
-        await redis.aclose()
-        return None

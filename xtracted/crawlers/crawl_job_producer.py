@@ -1,43 +1,23 @@
 import asyncio
-import uuid
-
-from redis.asyncio.client import Redis
-from redis.asyncio.cluster import RedisCluster
 
 from xtracted.configuration import XtractedConfigFromDotEnv
-from xtracted.model import CrawlJobInput
+from xtracted.model import CrawlJob, CrawlJobInput
+from xtracted.queue import Queue, RedisQueue
 
 
 class CrawlJobProducer:
-    def __init__(self, *, client: Redis | RedisCluster):
-        self.client = client
+    def __init__(self, queue: Queue):
+        self.queue = queue
 
-    async def submit(self, job: CrawlJobInput) -> str:
-        job_id = str(uuid.uuid1())
-
-        # add those urls to the main crawl stream
-        for url in job.urls:
-            await self.client.hset(  # type: ignore
-                name=f'job:{job_id}:{url.__str__()}',
-                mapping={'attempts': 0, 'status': 'NEW'},
-            )
-            await self.client.xadd(
-                name='crawl', fields={'url': url.__str__(), 'job_id': job_id}
-            )
-        await self.client.aclose()
-        return job_id
-
-    async def close(self) -> None:
-        await self.client.aclose()
+    async def submit(self, job: CrawlJobInput) -> CrawlJob:
+        crawl_job = await self.queue.submit_crawl_job(job)
+        return crawl_job
 
 
 if __name__ == '__main__':
     config = XtractedConfigFromDotEnv()
-    producer = CrawlJobProducer(
-        client=RedisCluster.from_url(
-            str(config.random_cluster_url()), decode_responses=True
-        )
-    )
+    queue = RedisQueue(config)
+    producer = CrawlJobProducer(queue=queue)
     asyncio.run(
         producer.submit(CrawlJobInput(urls={'https://www.amazon.co.uk/dp/B0931VRJT5'}))
     )

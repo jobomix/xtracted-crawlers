@@ -1,6 +1,3 @@
-import asyncio
-from typing import Optional
-
 from pydantic import AnyUrl
 from redis.asyncio import Redis
 
@@ -59,14 +56,12 @@ async def test_submit_crawl_job_creates_metadata(
         'retries': '0',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT5',
         'status': 'pending',
-        'extracted': '{}',
     }
     assert second_redis_hash_key == {
         'crawl_url_id': f'crawl_url:{crawl_job.job_id}:1',
         'retries': '0',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT6',
         'status': 'pending',
-        'extracted': '{}',
     }
 
 
@@ -130,29 +125,3 @@ async def test_get_job_by_id_retrieves_urls(queue: Queue, redis_client: Redis) -
     assert retrieved_job is not None
     assert retrieved_job.job_id == crawl_job.job_id
     assert len(retrieved_job.urls) == 2
-
-
-async def test_consume(queue: Queue, redis_client: Redis) -> None:
-    async def readQueue() -> Optional[CrawlUrl]:
-        await asyncio.sleep(1)
-        return await queue.consume('nono')
-
-    task = asyncio.create_task(readQueue())
-
-    await queue.submit_crawl_job(
-        CrawlJobInput(
-            urls={
-                AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
-                AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT6'),
-            }
-        )
-    )
-
-    await task
-
-    result = task.result()
-    assert result is not None
-
-    if result:
-        assert result.crawl_url_id[-1] == '0'
-        assert result.url.__str__() == 'https://www.amazon.co.uk/dp/B0931VRJT5'

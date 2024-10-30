@@ -11,6 +11,8 @@ python = "^3.11"
 playwright = "^1.44.0"
 redis = {extras = ["hiredis"], version = "^5.0.7"}
 pydantic-settings = "^2.4.0"
+aiofiles = "^24.1.0"
+types-aiofiles = "^24.1.0.20240626"
 
 
 [tool.poetry.group.dev.dependencies]

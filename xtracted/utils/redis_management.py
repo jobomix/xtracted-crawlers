@@ -3,6 +3,7 @@ import asyncio
 from xtracted.configuration import XtractedConfigFromDotEnv
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
 from xtracted.model import CrawlJobInput
+from xtracted.queue import RedisQueue
 
 config = XtractedConfigFromDotEnv()
 
@@ -15,15 +16,12 @@ async def _remove_keys() -> None:
 
 
 async def _send_message() -> None:
-    client = config.new_client()
-
-    producer = CrawlJobProducer(client=client)
+    queue = RedisQueue(config=XtractedConfigFromDotEnv())
+    producer = CrawlJobProducer(queue)
 
     await producer.submit(
         CrawlJobInput(urls={'https://www.amazon.co.uk/dp/B0931VRJT5'})
     )
-
-    await client.aclose()
 
 
 def remove_keys() -> None:

@@ -50,6 +50,6 @@ async def conf() -> AsyncGenerator[TestConfig, Any]:
     yield TestConfig()
 
 
-@pytest.fixture(scope='session')
-async def queue(conf: TestConfig) -> AsyncGenerator[Queue, Any]:
+@pytest.fixture(scope='function')
+async def queue(conf: TestConfig, redis_client: Redis) -> AsyncGenerator[Queue, Any]:
     yield RedisQueue(conf)
