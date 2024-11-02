@@ -7,8 +7,9 @@ from playwright.async_api import Page, Playwright, async_playwright
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import (
-    CrawlUrl,
+    AmazonProductUrl,
     CrawlUrlStatus,
+    Extractor,
 )
 from xtracted.storage import TempFileStorage
 
@@ -16,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 logger = logging.getLogger('amazon-async-crawler')
 
 
-class AmazonAsyncProduct:
+class AmazonAsyncProduct(Extractor):
     def __init__(self, *, crawl_context: CrawlContext):
         self.crawl_context = crawl_context
 
@@ -118,8 +119,8 @@ if __name__ == '__main__':
         crawl_context=DefaultCrawlContext(
             storage=TempFileStorage(),
             crawl_syncer=DummyCrawlSyncer(),
-            crawl_url=CrawlUrl(
-                crawl_url_id='crawl_url:123456:0',
+            crawl_url=AmazonProductUrl(
+                job_id='123456',
                 url='file:///home/nono/projects/xtracted/crawlers-python/tests/en_GB/gopro.html',
             ),
             message_id='some-msg-id',

@@ -1,7 +1,7 @@
 from pydantic import AnyUrl
 from redis.asyncio import Redis
 
-from xtracted.model import CrawlJobInput, CrawlJobStatus, CrawlUrl
+from xtracted.model import CrawlJobInput, CrawlJobStatus, AmazonProductUrl
 from xtracted.queue import Queue
 
 
@@ -17,12 +17,12 @@ async def test_submit_crawl_job_creates_a_crawl_job(
         )
     )
 
-    first_url = CrawlUrl(
-        crawl_url_id=f'crawl_url:{crawl_job.job_id}:0',
+    first_url = AmazonProductUrl(
+        job_id=crawl_job.job_id,
         url='https://www.amazon.co.uk/dp/B0931VRJT5',
     )
-    second_url = CrawlUrl(
-        crawl_url_id=f'crawl_url:{crawl_job.job_id}:1',
+    second_url = AmazonProductUrl(
+        job_id=crawl_job.job_id,
         url='https://www.amazon.co.uk/dp/B0931VRJT6',
     )
 
@@ -52,13 +52,15 @@ async def test_submit_crawl_job_creates_metadata(
     )
 
     assert first_redis_hash_key == {
-        'crawl_url_id': f'crawl_url:{crawl_job.job_id}:0',
+        'job_id': crawl_job.job_id,
+        'url_id': f'crawl_url:{crawl_job.job_id}:B0931VRJT5',
         'retries': '0',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT5',
         'status': 'pending',
     }
     assert second_redis_hash_key == {
-        'crawl_url_id': f'crawl_url:{crawl_job.job_id}:1',
+        'job_id': crawl_job.job_id,
+        'url_id': f'crawl_url:{crawl_job.job_id}:B0931VRJT6',
         'retries': '0',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT6',
         'status': 'pending',

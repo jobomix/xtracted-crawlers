@@ -1,6 +1,7 @@
 import re
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Generator, Optional
+from typing import Any, ClassVar, Generator, Optional, Pattern
 
 from pydantic import (
     AfterValidator,
@@ -63,6 +64,12 @@ def check_amazon_valid_url(url: AnyHttpUrl) -> Optional[AnyHttpUrl]:
 ValidAmazonUrl = Annotated[AnyHttpUrl, AfterValidator(check_amazon_valid_url)]
 
 
+class Extractor(ABC):
+    @abstractmethod
+    async def crawl(self) -> None:
+        pass
+
+
 class CrawlUrlStatus(str, Enum):
     complete = 'complete'
     error = 'error'
@@ -80,6 +87,36 @@ class InvalidUrlException(Exception):
     pass
 
 
+class XtractedUrl(BaseModel):
+    url: AnyUrl
+    job_id: str
+    url_id: str = 'ABSTRACT'
+    status: CrawlUrlStatus = CrawlUrlStatus.pending
+    retries: int = 0
+
+    def model_post_init(self, __context: Any) -> None:
+        raise ValueError('cannot instantiate')
+
+    def __hash__(self) -> int:
+        return self.url_id.__hash__()
+
+    def get_url_id_suffix(self) -> str:
+        split = self.url_id.split(':')
+        return split[-1]
+
+
+class AmazonProductUrl(XtractedUrl):
+    match_url: ClassVar[Pattern] = re.compile(r'.*/dp/([A-Z0-9]{10}).*')
+
+    def model_post_init(self, __context: Any) -> None:
+        m = AmazonProductUrl.match_url.match(self.url.path)
+        if not m:
+            raise ValueError(
+                f'The url {self.url} does look like a valid amazon product URL'
+            )
+        self.url_id = f'crawl_url:{self.job_id}:{m.group(1)}'
+
+
 class CrawlJobInput(BaseModel):
     """
     Crawl job Representation. Contains mainly a set of urls.
@@ -93,49 +130,26 @@ class CrawlJobFreeInput(CrawlJobInput):
     urls: set[AnyUrl] = set()
 
 
-class CrawlUrl(BaseModel):
-    crawl_url_id: str
-    url: AnyUrl
-    status: CrawlUrlStatus = CrawlUrlStatus.pending
-    retries: int = 0
-
-    def get_job_id(self) -> str:
-        split = self.crawl_url_id.split(':')
-        return split[1]
-
-    def get_url_id_suffix(self) -> str:
-        split = self.crawl_url_id.split(':')
-        return split[2]
-
-    def __hash__(self) -> int:
-        return self.crawl_url_id.__hash__()
-
-    @staticmethod
-    def extract_url_id_suffix(crawl_url_id: str) -> str:
-        split = crawl_url_id.split(':')
-        return split[-1]
-
-
 class CrawlJob(BaseModel):
     job_id: str
     status: CrawlJobStatus
-    urls: set[CrawlUrl] = set()
+    urls: set[XtractedUrl] = set()
 
     def _filter_url_by_status(
         self, status: CrawlUrlStatus
-    ) -> Generator[CrawlUrl, None, None]:
+    ) -> Generator[XtractedUrl, None, None]:
         return (url for url in self.urls if url.status == status)
 
-    def get_pending_urls(self) -> Generator[CrawlUrl, None, None]:
+    def get_pending_urls(self) -> Generator[XtractedUrl, None, None]:
         return self._filter_url_by_status(CrawlUrlStatus.pending)
 
-    def get_running_urls(self) -> Generator[CrawlUrl, None, None]:
+    def get_running_urls(self) -> Generator[XtractedUrl, None, None]:
         return self._filter_url_by_status(CrawlUrlStatus.running)
 
-    def get_completed_urls(self) -> Generator[CrawlUrl, None, None]:
+    def get_completed_urls(self) -> Generator[XtractedUrl, None, None]:
         return self._filter_url_by_status(CrawlUrlStatus.complete)
 
-    def get_failed_urls(self) -> Generator[CrawlUrl, None, None]:
+    def get_failed_urls(self) -> Generator[XtractedUrl, None, None]:
         return self._filter_url_by_status(CrawlUrlStatus.error)
 
     def get_status(self) -> CrawlJobStatus:

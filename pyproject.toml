@@ -13,6 +13,7 @@ redis = {extras = ["hiredis"], version = "^5.0.7"}
 pydantic-settings = "^2.4.0"
 aiofiles = "^24.1.0"
 types-aiofiles = "^24.1.0.20240626"
+aiohttp = "^3.10.10"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -27,6 +28,7 @@ pyright = "^1.1.377"
 ruff = "^0.6.2"
 mypy = "^1.11.1"
 poethepoet = "^0.29.0"
+pytest-aiohttp = "^1.0.5"
 
 [build-system]
 requires = ["poetry-core"]

@@ -8,8 +8,14 @@ from pydantic import AnyUrl
 from redis.asyncio import StrictRedis
 from redis.asyncio.client import Redis
 
+from tests.integration.amazon_server import new_web_app
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
-from xtracted.model import CrawlJobFreeInput, CrawlJobInput, CrawlUrl, CrawlUrlStatus
+from xtracted.model import (
+    AmazonProductUrl,
+    CrawlJobFreeInput,
+    CrawlJobInput,
+    CrawlUrlStatus,
+)
 from xtracted.queue import Queue
 from xtracted.storage import Storage
 from xtracted.workers.crawl_job_worker import CrawlJobWorker
@@ -53,14 +59,17 @@ async def test_crawl_job_submit_create_context(
         f'crawl_url:{crawl_job.job_id}:0'
     )
     assert result == {
-        'crawl_url_id': f'crawl_url:{crawl_job.job_id}:0',
+        'job_id': crawl_job.job_id,
+        'url_id': f'crawl_url:{crawl_job.job_id}:B0931VRJT5',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT5',
         'status': 'pending',
         'retries': '0',
     }
 
 
-async def test_consumer(queue: Queue, redis_client: Redis) -> None:
+async def test_consumer(queue: Queue, redis_client: Redis, aiohttp_server: Any) -> None:
+    server = await aiohttp_server(new_web_app())
+
     async def wait(condition: Callable[[], bool], timeout: int = 10) -> None:
         for i in range(timeout * 2):
             if not condition():
@@ -81,7 +90,7 @@ async def test_consumer(queue: Queue, redis_client: Redis) -> None:
     crawl_job = await producer.submit(
         CrawlJobFreeInput(
             urls={
-                AnyUrl(f'file://{filepath}/en_GB/gopro.html'),
+                AnyUrl(f'http://localhost:{server.port}/dp/B01GFPWTI4?x=foo&bar=y'),
             }
         )
     )
@@ -89,10 +98,10 @@ async def test_consumer(queue: Queue, redis_client: Redis) -> None:
     await wait(lambda: storage.append.call_args is not None)
     await worker.stop()
 
-    crawl_url = cast(CrawlUrl, storage.append.call_args.args[0])
+    crawl_url = cast(AmazonProductUrl, storage.append.call_args.args[0])
     data = cast(dict[str, Any], storage.append.call_args.args[1])
     storage.append.assert_called_once()
-    assert crawl_url.crawl_url_id == f'crawl_url:{crawl_job.job_id}:0'
+    assert crawl_url.url_id == f'crawl_url:{crawl_job.job_id}:B01GFPWTI4'
     assert crawl_url.status == CrawlUrlStatus.complete
-    assert data['asin'] == 'B0CF7X369M'
-    assert data['url'] == f'file://{filepath}/en_GB/gopro.html'
+    assert data['asin'] == 'B01GFPWTI4'
+    assert data['url'] == f'http://localhost:{server.port}/dp/B01GFPWTI4?x=foo&bar=y'

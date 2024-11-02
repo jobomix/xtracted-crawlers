@@ -8,12 +8,12 @@ from typing import Any
 
 import aiofiles
 
-from xtracted.model import CrawlUrl
+from xtracted.model import XtractedUrl
 
 
 class Storage(ABC):
     @abstractmethod
-    async def append(self, crawl_url: CrawlUrl, data: dict[str, Any]) -> None:
+    async def append(self, crawl_url: XtractedUrl, data: dict[str, Any]) -> None:
         pass
 
     @abstractmethod
@@ -36,13 +36,13 @@ class TempFileStorage(Storage):
                     if data.exists() and data.is_file():
                         with open(data, 'r') as f:
                             split = str(url_dir).split(os.sep)
-                            id = CrawlUrl.extract_url_id_suffix(split[-1])
+                            id = split[-1]
                             result.append({id: json.load(f)})
 
         return result
 
-    async def append(self, crawl_url: CrawlUrl, data: dict[str, Any]) -> None:
-        job_id = crawl_url.get_job_id()
+    async def append(self, crawl_url: XtractedUrl, data: dict[str, Any]) -> None:
+        job_id = crawl_url.job_id
         url_suffix = crawl_url.get_url_id_suffix()
         url_location = self.jobs_dir / job_id / url_suffix
         url_location.mkdir(exist_ok=True, parents=True)

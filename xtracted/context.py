@@ -5,7 +5,7 @@ from pydantic import AnyHttpUrl
 from redis.asyncio import RedisCluster
 from redis.asyncio.client import Redis
 
-from xtracted.model import CrawlUrl, CrawlUrlStatus
+from xtracted.model import CrawlUrlStatus, XtractedUrl
 from xtracted.storage import Storage
 
 
@@ -21,7 +21,7 @@ class CrawlSyncer(ABC):
 
 class CrawlContext(ABC):
     @abstractmethod
-    def get_crawl_url(self) -> CrawlUrl:
+    def get_crawl_url(self) -> XtractedUrl:
         pass
 
     @abstractmethod
@@ -39,7 +39,7 @@ class CrawlContext(ABC):
 
 class RedisCrawlSyncer(CrawlSyncer):
     def __init__(
-        self, *, redis: Redis | RedisCluster, crawl_url: CrawlUrl, message_id: str
+        self, *, redis: Redis | RedisCluster, crawl_url: XtractedUrl, message_id: str
     ) -> None:
         self.redis = redis
         self.crawl_url = crawl_url
@@ -51,7 +51,7 @@ class RedisCrawlSyncer(CrawlSyncer):
     async def update_url_status(self, status: CrawlUrlStatus) -> None:
         self.crawl_url.status = status
         await self.redis.hset(
-            self.crawl_url.crawl_url_id, mapping=self.crawl_url.model_dump(mode='json')
+            self.crawl_url.url_id, mapping=self.crawl_url.model_dump(mode='json')
         )  # type: ignore
         return None
 
@@ -62,7 +62,7 @@ class DefaultCrawlContext(CrawlContext):
         *,
         storage: Storage,
         crawl_syncer: CrawlSyncer,
-        crawl_url: CrawlUrl,
+        crawl_url: XtractedUrl,
         message_id: str,
     ) -> None:
         self._storage = storage
@@ -70,7 +70,7 @@ class DefaultCrawlContext(CrawlContext):
         self._crawl_url = crawl_url
         self._message_id = message_id
 
-    def get_crawl_url(self) -> CrawlUrl:
+    def get_crawl_url(self) -> XtractedUrl:
         return self._crawl_url
 
     async def enqueue(self, url: AnyHttpUrl) -> bool:

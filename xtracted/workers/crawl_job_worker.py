@@ -9,7 +9,7 @@ from redis.asyncio.cluster import RedisCluster
 from xtracted.configuration import XtractedConfigFromDotEnv
 from xtracted.context import DefaultCrawlContext, RedisCrawlSyncer
 from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
-from xtracted.model import CrawlUrl
+from xtracted.model import AmazonProductUrl
 from xtracted.storage import Storage, TempFileStorage
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -69,7 +69,7 @@ class CrawlJobWorker:
                     message_id = x[0][0]
                     mapping = x[0][1]
 
-                    crawl_url = CrawlUrl(**mapping)
+                    crawl_url = AmazonProductUrl(**mapping)
 
                     async_product = AmazonAsyncProduct(
                         crawl_context=DefaultCrawlContext(

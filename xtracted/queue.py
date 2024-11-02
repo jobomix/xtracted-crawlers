@@ -6,10 +6,11 @@ from redis.asyncio import ResponseError
 
 from xtracted.configuration import XtractedConfig
 from xtracted.model import (
+    AmazonProductUrl,
     CrawlJob,
     CrawlJobInput,
     CrawlJobStatus,
-    CrawlUrl,
+    XtractedUrl,
 )
 
 
@@ -46,7 +47,7 @@ class RedisQueue(Queue):
             await redis.aclose()
 
     def _crawl_url_to_redis_hset(
-        self, crawl_url: CrawlUrl
+        self, crawl_url: XtractedUrl
     ) -> dict[
         bytes | memoryview | str | int | float, bytes | memoryview | str | int | float
     ]:
@@ -78,7 +79,7 @@ class RedisQueue(Queue):
                 for i in range(int(ucnt)):
                     value = await redis.hgetall(f'crawl_url:{job_id}:{i}')  # type: ignore
                     if value:
-                        crawl_job.urls.add(CrawlUrl(**value))
+                        crawl_job.urls.add(AmazonProductUrl(**value))
         finally:
             await redis.aclose()
         return crawl_job
@@ -96,8 +97,8 @@ class RedisQueue(Queue):
 
             await redis.zadd(f'job:{job_id}:pending', {str(ucnt): ucnt})
 
-            crawl_url = CrawlUrl(
-                crawl_url_id=f'crawl_url:{job_id}:{ucnt}',
+            crawl_url = AmazonProductUrl(
+                job_id=job_id,
                 url=url,
             )
 
