@@ -8,7 +8,6 @@ from playwright.async_api import Page, Playwright, async_playwright
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import (
     AmazonProductUrl,
-    CrawlUrlStatus,
     Extractor,
 )
 from xtracted.storage import TempFileStorage
@@ -112,7 +111,7 @@ if __name__ == '__main__':
         async def ack(self) -> None:
             pass
 
-        async def update_url_status(self, status: CrawlUrlStatus) -> None:
+        async def sync(self) -> None:
             pass
 
     aap = AmazonAsyncProduct(

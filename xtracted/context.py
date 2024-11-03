@@ -5,13 +5,13 @@ from pydantic import AnyHttpUrl
 from redis.asyncio import RedisCluster
 from redis.asyncio.client import Redis
 
-from xtracted.model import CrawlUrlStatus, XtractedUrl
+from xtracted.model import XtractedUrl
 from xtracted.storage import Storage
 
 
 class CrawlSyncer(ABC):
     @abstractmethod
-    async def update_url_status(self, status: CrawlUrlStatus) -> None:
+    async def sync(self) -> None:
         pass
 
     @abstractmethod
@@ -48,8 +48,7 @@ class RedisCrawlSyncer(CrawlSyncer):
     async def ack(self) -> None:
         await self.redis.xack('crawl', 'crawlers', self.message_id)
 
-    async def update_url_status(self, status: CrawlUrlStatus) -> None:
-        self.crawl_url.status = status
+    async def sync(self) -> None:
         await self.redis.hset(
             self.crawl_url.url_id, mapping=self.crawl_url.model_dump(mode='json')
         )  # type: ignore
@@ -80,6 +79,7 @@ class DefaultCrawlContext(CrawlContext):
         pass
 
     async def complete(self, data: dict[str, Any]) -> None:
-        await self._crawl_syncer.update_url_status(CrawlUrlStatus.complete)
+        self._crawl_url.set_url_complete()
+        await self._crawl_syncer.sync()
         await self._storage.append(self._crawl_url, data)
         await self._crawl_syncer.ack()

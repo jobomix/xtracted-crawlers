@@ -104,6 +104,18 @@ class XtractedUrl(BaseModel):
         split = self.url_id.split(':')
         return split[-1]
 
+    def set_url_pending(self) -> None:
+        self.status = CrawlUrlStatus.pending
+
+    def set_url_running(self) -> None:
+        self.stataus = CrawlUrlStatus.running
+
+    def set_url_complete(self) -> None:
+        self.status = CrawlUrlStatus.complete
+
+    def set_url_error(self) -> None:
+        self.status = CrawlUrlStatus.error
+
 
 class AmazonProductUrl(XtractedUrl):
     match_url: ClassVar[Pattern] = re.compile(r'.*/dp/([A-Z0-9]{10}).*')
