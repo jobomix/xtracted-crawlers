@@ -11,11 +11,11 @@ from xtracted.storage import Storage
 
 class CrawlSyncer(ABC):
     @abstractmethod
-    async def sync(self) -> None:
+    async def sync(self, crawl_url: XtractedUrl) -> None:
         pass
 
     @abstractmethod
-    async def ack(self) -> None:
+    async def ack(self, message_id: str) -> None:
         pass
 
 
@@ -38,19 +38,15 @@ class CrawlContext(ABC):
 
 
 class RedisCrawlSyncer(CrawlSyncer):
-    def __init__(
-        self, *, redis: Redis | RedisCluster, crawl_url: XtractedUrl, message_id: str
-    ) -> None:
+    def __init__(self, *, redis: Redis | RedisCluster) -> None:
         self.redis = redis
-        self.crawl_url = crawl_url
-        self.message_id = message_id
 
-    async def ack(self) -> None:
-        await self.redis.xack('crawl', 'crawlers', self.message_id)
+    async def ack(self, message_id: str) -> None:
+        await self.redis.xack('crawl', 'crawlers', message_id)
 
-    async def sync(self) -> None:
+    async def sync(self, crawl_url: XtractedUrl) -> None:
         await self.redis.hset(
-            self.crawl_url.url_id, mapping=self.crawl_url.model_dump(mode='json')
+            crawl_url.url_id, mapping=crawl_url.model_dump(mode='json')
         )  # type: ignore
         return None
 
@@ -80,6 +76,6 @@ class DefaultCrawlContext(CrawlContext):
 
     async def complete(self, data: dict[str, Any]) -> None:
         self._crawl_url.set_url_complete()
-        await self._crawl_syncer.sync()
         await self._storage.append(self._crawl_url, data)
-        await self._crawl_syncer.ack()
+        await self._crawl_syncer.sync(self._crawl_url)
+        await self._crawl_syncer.ack(self._message_id)

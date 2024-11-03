@@ -2,14 +2,14 @@ import asyncio
 import logging
 from asyncio import CancelledError, Task
 
+from pydantic import AnyUrl
 from redis.asyncio import ResponseError
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
 
 from xtracted.configuration import XtractedConfigFromDotEnv
-from xtracted.context import DefaultCrawlContext, RedisCrawlSyncer
-from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
-from xtracted.model import AmazonProductUrl
+from xtracted.context import RedisCrawlSyncer
+from xtracted.crawlers.extractor_factory import Extractorfactory
 from xtracted.storage import Storage, TempFileStorage
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -28,6 +28,9 @@ class CrawlJobWorker:
         self.consumer_name = consumer_name
         self.background_tasks = set[Task]()
         self.storage = storage
+        self.extractor_factory = Extractorfactory(
+            storage=storage, crawl_syncer=RedisCrawlSyncer(redis=client)
+        )
 
     async def start(self) -> None:
         t = asyncio.create_task(self.consume())
@@ -69,23 +72,14 @@ class CrawlJobWorker:
                     message_id = x[0][0]
                     mapping = x[0][1]
 
-                    crawl_url = AmazonProductUrl(**mapping)
-
-                    async_product = AmazonAsyncProduct(
-                        crawl_context=DefaultCrawlContext(
-                            storage=self.storage,
-                            message_id=message_id,
-                            crawl_url=crawl_url,
-                            crawl_syncer=RedisCrawlSyncer(
-                                redis=self.client,
-                                crawl_url=crawl_url,
-                                message_id=message_id,
-                            ),
-                        )
+                    extractor = self.extractor_factory.new_instance(
+                        job_id=mapping['job_id'],
+                        message_id=message_id,
+                        url=AnyUrl(mapping['url']),
                     )
 
-                    await async_product.crawl()
-                    logger.info(f'ack sent for url: {mapping["url"]}')
+                    if extractor:
+                        await extractor.crawl()
 
         except CancelledError:
             await self.client.aclose()
