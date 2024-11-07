@@ -1,6 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional, cast
+from typing import Optional
 
 from redis.asyncio import ResponseError
 
@@ -10,7 +10,7 @@ from xtracted.model import (
     CrawlJob,
     CrawlJobInput,
     CrawlJobStatus,
-    XtractedUrl,
+    UrlFactory,
 )
 
 
@@ -46,24 +46,6 @@ class RedisQueue(Queue):
         finally:
             await redis.aclose()
 
-    def _crawl_url_to_redis_hset(
-        self, crawl_url: XtractedUrl
-    ) -> dict[
-        bytes | memoryview | str | int | float, bytes | memoryview | str | int | float
-    ]:
-        import json
-
-        json_model = crawl_url.model_dump_json()
-        dict_model = json.loads(json_model)
-
-        return cast(
-            dict[
-                bytes | memoryview | str | int | float,
-                bytes | memoryview | str | int | float,
-            ],
-            dict_model,
-        )
-
     async def ack(self, msg_id: str) -> None:
         redis = self.config.new_client()
         await redis.xack('crawl', 'crawlers', msg_id)
@@ -73,11 +55,11 @@ class RedisQueue(Queue):
         redis = self.config.new_client()
         crawl_job = None
         try:
-            ucnt = await redis.get(f'ucnt:{job_id}')
-            if ucnt:
+            urls = await redis.smembers(f'job:{job_id}')  # type: ignore
+            if urls:
                 crawl_job = CrawlJob(job_id=job_id, status=CrawlJobStatus.pending)
-                for i in range(int(ucnt)):
-                    value = await redis.hgetall(f'crawl_url:{job_id}:{i}')  # type: ignore
+                for url_id in urls:
+                    value = await redis.hgetall(url_id)  # type: ignore
                     if value:
                         crawl_job.urls.add(AmazonProductUrl(**value))
         finally:
@@ -89,30 +71,25 @@ class RedisQueue(Queue):
         redis = self.config.new_client()
         crawl_job = CrawlJob(job_id=job_id, status=CrawlJobStatus.pending)
         await self._create_crawlers_group()
-        await redis.set(f'ucnt:{crawl_job.job_id}', '0')
-
         # add those urls to the main crawl stream
         for url in crawl_job_input.urls:
-            ucnt = await redis.get(f'ucnt:{crawl_job.job_id}')
-
-            await redis.zadd(f'job:{job_id}:pending', {str(ucnt): ucnt})
-
-            crawl_url = AmazonProductUrl(
+            crawl_url = UrlFactory.new_url(
                 job_id=job_id,
                 url=url,
             )
 
-            url_mapping = self._crawl_url_to_redis_hset(crawl_url)
+            if crawl_url:
+                await redis.sadd(f'job:{job_id}', crawl_url.url_id)  # type:ignore
 
-            await redis.hset(  # type: ignore
-                name=f'crawl_url:{job_id}:{ucnt}', mapping=url_mapping
-            )
+                url_mapping = crawl_url.model_dump(mode='json')
 
-            await redis.xadd(name='crawl', fields=url_mapping)
+                await redis.hset(  # type: ignore
+                    name=crawl_url.url_id, mapping=url_mapping
+                )
 
-            await redis.incr(f'ucnt:{crawl_job.job_id}')
+                await redis.xadd(name='crawl', fields=url_mapping)  # type: ignore
 
-            crawl_job.urls.add(crawl_url)
+                crawl_job.urls.add(crawl_url)
 
         await redis.aclose()
         return crawl_job

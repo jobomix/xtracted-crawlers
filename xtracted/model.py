@@ -64,6 +64,10 @@ def check_amazon_valid_url(url: AnyHttpUrl) -> Optional[AnyHttpUrl]:
 ValidAmazonUrl = Annotated[AnyHttpUrl, AfterValidator(check_amazon_valid_url)]
 
 
+class CrawlException(Exception):
+    pass
+
+
 class Extractor(ABC):
     @abstractmethod
     async def crawl(self) -> None:
@@ -87,34 +91,39 @@ class InvalidUrlException(Exception):
     pass
 
 
-class XtractedUrl(BaseModel):
+class XtractedUrl(BaseModel, ABC):
     url: AnyUrl
     job_id: str
     url_id: str = 'ABSTRACT'
     status: CrawlUrlStatus = CrawlUrlStatus.pending
     retries: int = 0
 
+    @property
+    @abstractmethod
+    def match_url(self) -> Pattern:
+        pass
+
     def model_post_init(self, __context: Any) -> None:
         raise ValueError('cannot instantiate')
-
-    def __hash__(self) -> int:
-        return self.url_id.__hash__()
 
     def get_url_id_suffix(self) -> str:
         split = self.url_id.split(':')
         return split[-1]
 
-    def set_url_pending(self) -> None:
-        self.status = CrawlUrlStatus.pending
-
-    def set_url_running(self) -> None:
-        self.stataus = CrawlUrlStatus.running
-
-    def set_url_complete(self) -> None:
-        self.status = CrawlUrlStatus.complete
-
-    def set_url_error(self) -> None:
+    def error(self) -> None:
+        self.retries += 1
         self.status = CrawlUrlStatus.error
+
+    def __hash__(self) -> int:
+        return self.url_id.__hash__()
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, XtractedUrl):
+            return self.url_id == other.url_id
+        return False
+
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
 
 
 class AmazonProductUrl(XtractedUrl):
@@ -127,6 +136,15 @@ class AmazonProductUrl(XtractedUrl):
                 f'The url {self.url} does look like a valid amazon product URL'
             )
         self.url_id = f'crawl_url:{self.job_id}:{m.group(1)}'
+
+
+class UrlFactory:
+    @staticmethod
+    def new_url(url: AnyUrl, job_id: str) -> Optional[XtractedUrl]:
+        if url.path:
+            if AmazonProductUrl.match_url.match(url.path):
+                return AmazonProductUrl(job_id=job_id, url=url)
+        return None
 
 
 class CrawlJobInput(BaseModel):

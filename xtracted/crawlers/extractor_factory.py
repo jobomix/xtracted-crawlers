@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic_core import Url
+from pydantic import AnyUrl
 
 from xtracted.context import CrawlSyncer, DefaultCrawlContext
 from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
@@ -14,14 +14,15 @@ class Extractorfactory:
         self.crawl_syncer = crawl_syncer
 
     def new_instance(
-        self, job_id: str, message_id: str, url: Url
+        self, message_id: str, mapping: dict[str, Any]
     ) -> Optional[Extractor]:
+        url = AnyUrl(mapping['url'])
         if url.path:
             if AmazonProductUrl.match_url.match(url.path):
                 return AmazonAsyncProduct(
                     crawl_context=DefaultCrawlContext(
                         message_id=message_id,
-                        crawl_url=AmazonProductUrl(job_id=job_id, url=url),
+                        crawl_url=AmazonProductUrl(**mapping),
                         crawl_syncer=self.crawl_syncer,
                         storage=self.storage,
                     )

@@ -1,6 +1,5 @@
 import asyncio
 import pathlib
-from collections.abc import Callable
 from typing import Any, cast
 from unittest.mock import Mock
 
@@ -9,6 +8,7 @@ from redis.asyncio import StrictRedis
 from redis.asyncio.client import Redis
 
 from tests.integration.amazon_server import new_web_app
+from tests.utils.common import wait
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
 from xtracted.model import (
     AmazonProductUrl,
@@ -56,7 +56,7 @@ async def test_crawl_job_submit_create_context(
         )
     )
     result = await redis_client.hgetall(  # type: ignore
-        f'crawl_url:{crawl_job.job_id}:0'
+        f'crawl_url:{crawl_job.job_id}:B0931VRJT5'
     )
     assert result == {
         'job_id': crawl_job.job_id,
@@ -69,13 +69,6 @@ async def test_crawl_job_submit_create_context(
 
 async def test_consumer(queue: Queue, redis_client: Redis, aiohttp_server: Any) -> None:
     server = await aiohttp_server(new_web_app())
-
-    async def wait(condition: Callable[[], bool], timeout: int = 10) -> None:
-        for i in range(timeout * 2):
-            if not condition():
-                await asyncio.sleep(0.5)
-            else:
-                break
 
     storage = Mock(spec=Storage)
     worker = CrawlJobWorker(

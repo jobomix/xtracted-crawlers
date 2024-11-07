@@ -1,7 +1,7 @@
 from pydantic import AnyUrl
 from redis.asyncio import Redis
 
-from xtracted.model import CrawlJobInput, CrawlJobStatus, AmazonProductUrl
+from xtracted.model import AmazonProductUrl, CrawlJobInput, CrawlJobStatus
 from xtracted.queue import Queue
 
 
@@ -44,11 +44,11 @@ async def test_submit_crawl_job_creates_metadata(
         )
     )
     first_redis_hash_key = await redis_client.hgetall(  # type: ignore
-        f'crawl_url:{crawl_job.job_id}:0'
+        f'crawl_url:{crawl_job.job_id}:B0931VRJT5'
     )
 
     second_redis_hash_key = await redis_client.hgetall(  # type: ignore
-        f'crawl_url:{crawl_job.job_id}:1'
+        f'crawl_url:{crawl_job.job_id}:B0931VRJT6'
     )
 
     assert first_redis_hash_key == {
@@ -85,7 +85,7 @@ async def test_submit_crawl_job_create_streams(
     assert first[1][1]['url'] == 'https://www.amazon.co.uk/dp/B0931VRJT6'
 
 
-async def test_submit_crawl_jobs_creates_pending_ordered_set(
+async def test_submit_crawl_jobs_creates_urls_set(
     queue: Queue, redis_client: Redis
 ) -> None:
     crawl_job = await queue.submit_crawl_job(
@@ -97,20 +97,11 @@ async def test_submit_crawl_jobs_creates_pending_ordered_set(
         )
     )
 
-    cnt = await redis_client.zcount(f'job:{crawl_job.job_id}:pending', 0, 3)
-    assert cnt == 2
+    urls = await redis_client.smembers(f'job:{crawl_job.job_id}')  # type: ignore
+    assert len(urls) == 2
 
-    first = await redis_client.zmpop(
-        1, [f'job:{crawl_job.job_id}:pending'], min=True, count=1
-    )  # type: ignore
-    assert first[0] == f'job:{crawl_job.job_id}:pending'
-    assert first[1] == [['0', '0']]
-
-    second = await redis_client.zmpop(
-        1, [f'job:{crawl_job.job_id}:pending'], min=True, count=1
-    )  # type: ignore
-    assert second[0] == f'job:{crawl_job.job_id}:pending'
-    assert second[1] == [['1', '1']]
+    assert f'crawl_url:{crawl_job.job_id}:B0931VRJT5' in urls
+    assert f'crawl_url:{crawl_job.job_id}:B0931VRJT6' in urls
 
 
 async def test_get_job_by_id_retrieves_urls(queue: Queue, redis_client: Redis) -> None:

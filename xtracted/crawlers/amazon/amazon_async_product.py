@@ -9,6 +9,7 @@ from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import (
     AmazonProductUrl,
     Extractor,
+    XtractedUrl,
 )
 from xtracted.storage import TempFileStorage
 
@@ -62,7 +63,7 @@ class AmazonAsyncProduct(Extractor):
 
     async def extract_asin(self, page: Page) -> Any:
         return await page.locator('#averageCustomerReviews').first.get_attribute(
-            'data-asin'
+            'data-asin', timeout=5000
         )
 
     async def extract_feature_bullets(self, page: Page) -> list[str]:
@@ -101,18 +102,29 @@ class AmazonAsyncProduct(Extractor):
         await self.crawl_context.complete(extracted)
 
     async def crawl(self) -> None:
-        async with async_playwright() as playwright:
-            await self.run(playwright)
+        try:
+            await self.crawl_context.set_running()
+            async with async_playwright() as playwright:
+                await self.run(playwright)
+        except Exception as e:
+            print('Error occurred', e)
+            await self.crawl_context.fail()
 
 
 if __name__ == '__main__':
 
     class DummyCrawlSyncer(CrawlSyncer):
-        async def ack(self) -> None:
+        async def ack(self, message_id: str) -> None:
             pass
 
-        async def sync(self) -> None:
+        async def sync(self, crawl_url: XtractedUrl) -> None:
             pass
+
+        async def replay(self, crawl_url: XtractedUrl) -> None:
+            pass
+
+        async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
+            return True
 
     aap = AmazonAsyncProduct(
         crawl_context=DefaultCrawlContext(

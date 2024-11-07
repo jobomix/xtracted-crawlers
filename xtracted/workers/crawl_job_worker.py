@@ -1,8 +1,8 @@
 import asyncio
 import logging
 from asyncio import CancelledError, Task
+from typing import Any
 
-from pydantic import AnyUrl
 from redis.asyncio import ResponseError
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
@@ -24,12 +24,15 @@ class CrawlJobWorker:
         consumer_name: str,
         storage: Storage,
     ) -> None:
+        crawl_syncer = RedisCrawlSyncer(redis=client)
         self.client = client
         self.consumer_name = consumer_name
         self.background_tasks = set[Task]()
+        self.crawling_tasks = set[Task]()
         self.storage = storage
+        self.crawl_syncer = crawl_syncer
         self.extractor_factory = Extractorfactory(
-            storage=storage, crawl_syncer=RedisCrawlSyncer(redis=client)
+            storage=storage, crawl_syncer=crawl_syncer
         )
 
     async def start(self) -> None:
@@ -53,10 +56,29 @@ class CrawlJobWorker:
                 await self.client.xgroup_create('crawl', 'crawlers', mkstream=True)
                 logger.info('crawler group "crawlers" created.')
 
+    async def crawl(self, res: Any) -> None:
+        logger.info('stream message received')
+        x = res[0][1]
+        message_id = x[0][0]
+        mapping = x[0][1]
+
+        extractor = self.extractor_factory.new_instance(
+            message_id=message_id, mapping=mapping
+        )
+
+        if extractor:
+            await extractor.crawl()
+
     async def consume(self) -> None:
         await self._create_crawlers_group()
         try:
             while True:
+                while len(self.crawling_tasks) > 2:
+                    logger.info(
+                        f'concurrent tasks running: {len(self.crawling_tasks)} -> sleeping...'
+                    )
+                    await asyncio.sleep(1)
+
                 res = await self.client.xreadgroup(
                     groupname='crawlers',
                     consumername=self.consumer_name,
@@ -67,20 +89,9 @@ class CrawlJobWorker:
                 )
 
                 if res and len(res) == 1:
-                    logger.info('stream message received')
-                    x = res[0][1]
-                    message_id = x[0][0]
-                    mapping = x[0][1]
-
-                    extractor = self.extractor_factory.new_instance(
-                        job_id=mapping['job_id'],
-                        message_id=message_id,
-                        url=AnyUrl(mapping['url']),
-                    )
-
-                    if extractor:
-                        await extractor.crawl()
-
+                    crawl_task = asyncio.create_task(self.crawl(res))
+                    self.crawling_tasks.add(crawl_task)
+                    crawl_task.add_done_callback(self.crawling_tasks.discard)
         except CancelledError:
             await self.client.aclose()
             logger.info('consume task cancelled.Connection closed')
