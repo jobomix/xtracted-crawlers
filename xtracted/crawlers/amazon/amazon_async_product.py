@@ -4,12 +4,12 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 from playwright.async_api import Page, Playwright, async_playwright
+from xtracted_common.model import XtractedUrl
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import (
     AmazonProductUrl,
     Extractor,
-    XtractedUrl,
 )
 from xtracted.storage import TempFileStorage
 

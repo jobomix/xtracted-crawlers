@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import aiofiles
-
-from xtracted.model import XtractedUrl
+from xtracted_common.model import XtractedUrl
 
 
 class Storage(ABC):

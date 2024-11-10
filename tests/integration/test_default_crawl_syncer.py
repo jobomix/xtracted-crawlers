@@ -4,10 +4,11 @@ from unittest.mock import Mock
 from pydantic import AnyHttpUrl, AnyUrl
 from pytest import fail
 from redis.asyncio import Redis, ResponseError
+from xtracted_common.model import CrawlUrlStatus, XtractedUrl
 
 from xtracted.context import DefaultCrawlContext, RedisCrawlSyncer
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
-from xtracted.model import AmazonProductUrl, CrawlJobInput, CrawlUrlStatus, XtractedUrl
+from xtracted.model import AmazonProductUrl, CrawlJobInput
 from xtracted.queue import Queue
 from xtracted.storage import Storage
 

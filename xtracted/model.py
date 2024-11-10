@@ -1,7 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, ClassVar, Generator, Optional, Pattern
+from typing import Any, ClassVar, Optional, Pattern
 
 from pydantic import (
     AfterValidator,
@@ -10,6 +9,7 @@ from pydantic import (
     BaseModel,
 )
 from typing_extensions import Annotated
+from xtracted_common.model import XtractedUrl
 
 from xtracted.crawlers.amazon.amazon_params import AmazonParams
 
@@ -74,56 +74,8 @@ class Extractor(ABC):
         pass
 
 
-class CrawlUrlStatus(str, Enum):
-    complete = 'complete'
-    error = 'error'
-    pending = 'pending'
-    running = 'running'
-
-
-class CrawlJobStatus(str, Enum):
-    complete = 'complete'
-    running = 'running'
-    pending = 'pending'
-
-
 class InvalidUrlException(Exception):
     pass
-
-
-class XtractedUrl(BaseModel, ABC):
-    url: AnyUrl
-    job_id: str
-    url_id: str = 'ABSTRACT'
-    status: CrawlUrlStatus = CrawlUrlStatus.pending
-    retries: int = 0
-
-    @property
-    @abstractmethod
-    def match_url(self) -> Pattern:
-        pass
-
-    def model_post_init(self, __context: Any) -> None:
-        raise ValueError('cannot instantiate')
-
-    def get_url_id_suffix(self) -> str:
-        split = self.url_id.split(':')
-        return split[-1]
-
-    def error(self) -> None:
-        self.retries += 1
-        self.status = CrawlUrlStatus.error
-
-    def __hash__(self) -> int:
-        return self.url_id.__hash__()
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, XtractedUrl):
-            return self.url_id == other.url_id
-        return False
-
-    def __ne__(self, other: object) -> bool:
-        return not self.__eq__(other)
 
 
 class AmazonProductUrl(XtractedUrl):
@@ -158,53 +110,3 @@ class CrawlJobInput(BaseModel):
 
 class CrawlJobFreeInput(CrawlJobInput):
     urls: set[AnyUrl] = set()
-
-
-class CrawlJob(BaseModel):
-    job_id: str
-    status: CrawlJobStatus
-    urls: set[XtractedUrl] = set()
-
-    def _filter_url_by_status(
-        self, status: CrawlUrlStatus
-    ) -> Generator[XtractedUrl, None, None]:
-        return (url for url in self.urls if url.status == status)
-
-    def get_pending_urls(self) -> Generator[XtractedUrl, None, None]:
-        return self._filter_url_by_status(CrawlUrlStatus.pending)
-
-    def get_running_urls(self) -> Generator[XtractedUrl, None, None]:
-        return self._filter_url_by_status(CrawlUrlStatus.running)
-
-    def get_completed_urls(self) -> Generator[XtractedUrl, None, None]:
-        return self._filter_url_by_status(CrawlUrlStatus.complete)
-
-    def get_failed_urls(self) -> Generator[XtractedUrl, None, None]:
-        return self._filter_url_by_status(CrawlUrlStatus.error)
-
-    def get_status(self) -> CrawlJobStatus:
-        complete = 0
-        error = 0
-        running = 0
-        pending = 0
-
-        for url in self.urls:
-            match url.status:
-                case CrawlUrlStatus.pending:
-                    pending += 1
-                case CrawlUrlStatus.running:
-                    running += 1
-                case CrawlUrlStatus.complete:
-                    complete += 1
-                case CrawlUrlStatus.error:
-                    error += 1
-
-        if running > 0:
-            return CrawlJobStatus.running
-        elif pending == 0 and running == 0:
-            return CrawlJobStatus.complete
-        else:
-            return CrawlJobStatus.pending
-
-    def __hash__(self) -> int:
-        return self.job_id.__hash__()

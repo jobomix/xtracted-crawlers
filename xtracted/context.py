@@ -4,8 +4,9 @@ from typing import Any, Optional
 from pydantic import AnyHttpUrl
 from redis.asyncio import RedisCluster
 from redis.asyncio.client import Redis
+from xtracted_common.model import CrawlUrlStatus, XtractedUrl
 
-from xtracted.model import CrawlUrlStatus, UrlFactory, XtractedUrl
+from xtracted.model import UrlFactory
 from xtracted.storage import Storage
 
 

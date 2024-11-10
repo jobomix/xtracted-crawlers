@@ -3,13 +3,12 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from redis.asyncio import ResponseError
+from xtracted_common.model import CrawlJob, CrawlJobStatus
 
 from xtracted.configuration import XtractedConfig
 from xtracted.model import (
     AmazonProductUrl,
-    CrawlJob,
     CrawlJobInput,
-    CrawlJobStatus,
     UrlFactory,
 )
 

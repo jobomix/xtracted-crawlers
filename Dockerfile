@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM --platform=$BUILDPLATFORM python:3.11.10-bullseye AS build
+FROM --platform=$BUILDPLATFORM python:3.12.7-bullseye AS build
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /app
