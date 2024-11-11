@@ -7,6 +7,7 @@ from pydantic import AnyUrl
 from redis.asyncio import StrictRedis
 from redis.asyncio.client import Redis
 from xtracted_common.model import CrawlUrlStatus
+from xtracted_common.storage import Storage
 
 from tests.integration.amazon_server import new_web_app
 from tests.utils.common import wait
@@ -17,7 +18,6 @@ from xtracted.model import (
     CrawlJobInput,
 )
 from xtracted.queue import Queue
-from xtracted.storage import Storage
 from xtracted.workers.crawl_job_worker import CrawlJobWorker
 
 filepath = pathlib.Path(__file__).resolve().parent.parent

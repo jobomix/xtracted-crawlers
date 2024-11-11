@@ -1,8 +1,8 @@
 import asyncio
 
+from xtracted_common.configuration import XtractedConfigFromDotEnv
 from xtracted_common.model import CrawlJob
 
-from xtracted.configuration import XtractedConfigFromDotEnv
 from xtracted.model import CrawlJobInput
 from xtracted.queue import Queue, RedisQueue
 

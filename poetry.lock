@@ -1630,14 +1630,17 @@ files = []
 develop = false
 
 [package.dependencies]
+aiofiles = "^24.1.0"
 pydantic = "^2.9.2"
 pydantic-settings = "^2.6.1"
+redis = {version = "^5.0.7", extras = ["hiredis"]}
+types-aiofiles = "^24.1.0.20240626"
 
 [package.source]
 type = "git"
 url = "git@github.com:jobomix/xtracted-common.git"
 reference = "HEAD"
-resolved_reference = "37e13a8d521fc6c73ae5043b7c376d5503b308a9"
+resolved_reference = "3d1fb0b31b60ea8fa949219f1a4eda35e9b6e80d"
 
 [[package]]
 name = "yarl"

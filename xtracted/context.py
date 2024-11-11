@@ -5,9 +5,9 @@ from pydantic import AnyHttpUrl
 from redis.asyncio import RedisCluster
 from redis.asyncio.client import Redis
 from xtracted_common.model import CrawlUrlStatus, XtractedUrl
+from xtracted_common.storage import Storage
 
 from xtracted.model import UrlFactory
-from xtracted.storage import Storage
 
 
 class CrawlSyncer(ABC):

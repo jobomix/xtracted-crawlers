@@ -6,8 +6,8 @@ import redis.asyncio as redis
 from pydantic import RedisDsn
 from pytest_docker.plugin import Services
 from redis.asyncio.client import Redis
+from xtracted_common.configuration import XtractedConfig
 
-from xtracted.configuration import XtractedConfig
 from xtracted.queue import Queue, RedisQueue
 
 logger = logging.getLogger(__name__)

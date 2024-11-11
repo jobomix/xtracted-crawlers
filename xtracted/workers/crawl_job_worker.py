@@ -6,11 +6,11 @@ from typing import Any
 from redis.asyncio import ResponseError
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
+from xtracted_common.configuration import XtractedConfigFromDotEnv
+from xtracted_common.storage import Storage, TempFileStorage
 
-from xtracted.configuration import XtractedConfigFromDotEnv
 from xtracted.context import RedisCrawlSyncer
 from xtracted.crawlers.extractor_factory import Extractorfactory
-from xtracted.storage import Storage, TempFileStorage
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 logger = logging.getLogger('redis-worker')

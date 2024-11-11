@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from redis.asyncio import ResponseError
+from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import CrawlJob, CrawlJobStatus
 
-from xtracted.configuration import XtractedConfig
 from xtracted.model import (
     AmazonProductUrl,
     CrawlJobInput,
