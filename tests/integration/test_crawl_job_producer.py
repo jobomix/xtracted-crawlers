@@ -6,14 +6,13 @@ from unittest.mock import Mock
 from pydantic import AnyUrl
 from redis.asyncio import StrictRedis
 from redis.asyncio.client import Redis
-from xtracted_common.model import CrawlUrlStatus
+from xtracted_common.model import AmazonProductUrl, CrawlUrlStatus
 from xtracted_common.storage import Storage
 
 from tests.integration.amazon_server import new_web_app
 from tests.utils.common import wait
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
 from xtracted.model import (
-    AmazonProductUrl,
     CrawlJobFreeInput,
     CrawlJobInput,
 )

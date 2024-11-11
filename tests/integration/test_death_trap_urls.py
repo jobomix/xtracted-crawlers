@@ -1,7 +1,6 @@
 import pytest
 from pydantic import ValidationError
-
-from xtracted.model import AmazonProductUrl
+from xtracted_common.model import AmazonProductUrl
 
 
 def test_match_url() -> None:

@@ -1626,7 +1626,7 @@ types-aiofiles = "^24.1.0.20240626"
 type = "git"
 url = "git@github.com:jobomix/xtracted-common.git"
 reference = "HEAD"
-resolved_reference = "3d1fb0b31b60ea8fa949219f1a4eda35e9b6e80d"
+resolved_reference = "bef114c01648bfc7b98007837cdb86a2b7a3bebd"
 
 [[package]]
 name = "yarl"

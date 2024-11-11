@@ -1,8 +1,8 @@
 from pydantic import AnyUrl
 from redis.asyncio import Redis
-from xtracted_common.model import CrawlJobStatus
+from xtracted_common.model import AmazonProductUrl, CrawlJobStatus
 
-from xtracted.model import AmazonProductUrl, CrawlJobInput
+from xtracted.model import CrawlJobInput
 from xtracted.queue import Queue
 
 

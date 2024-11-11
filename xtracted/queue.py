@@ -4,12 +4,10 @@ from typing import Optional
 
 from redis.asyncio import ResponseError
 from xtracted_common.configuration import XtractedConfig
-from xtracted_common.model import CrawlJob, CrawlJobStatus
+from xtracted_common.model import CrawlJob, CrawlJobStatus, UrlFactory
 
 from xtracted.model import (
-    AmazonProductUrl,
     CrawlJobInput,
-    UrlFactory,
 )
 
 
@@ -60,7 +58,9 @@ class RedisQueue(Queue):
                 for url_id in urls:
                     value = await redis.hgetall(url_id)  # type: ignore
                     if value:
-                        crawl_job.urls.add(AmazonProductUrl(**value))
+                        xtracted_url = UrlFactory.new_url(**value)
+                        if xtracted_url:
+                            crawl_job.urls.add(xtracted_url)
         finally:
             await redis.aclose()
         return crawl_job

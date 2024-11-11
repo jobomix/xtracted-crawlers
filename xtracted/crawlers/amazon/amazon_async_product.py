@@ -4,14 +4,14 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 from playwright.async_api import Page, Playwright, async_playwright
-from xtracted_common.model import XtractedUrl
+from xtracted_common.model import (
+    AmazonProductUrl,
+    XtractedUrl,
+)
 from xtracted_common.storage import TempFileStorage
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
-from xtracted.model import (
-    AmazonProductUrl,
-    Extractor,
-)
+from xtracted.model import Extractor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 logger = logging.getLogger('amazon-async-crawler')

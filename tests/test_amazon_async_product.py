@@ -1,10 +1,11 @@
 from typing import Any
 from unittest.mock import Mock
 
+from xtracted_common.model import AmazonProductUrl
+
 from tests.integration.amazon_server import new_web_app
 from xtracted.context import CrawlContext
 from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
-from xtracted.model import AmazonProductUrl
 
 
 async def test_extract_data_update_crawl_context(aiohttp_server: Any) -> None:

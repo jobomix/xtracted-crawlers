@@ -1,11 +1,12 @@
 from typing import Any, Optional
 
 from pydantic import AnyUrl
+from xtracted_common.model import AmazonProductUrl
 from xtracted_common.storage import Storage
 
 from xtracted.context import CrawlSyncer, DefaultCrawlContext
 from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
-from xtracted.model import AmazonProductUrl, Extractor
+from xtracted.model import Extractor
 
 
 class Extractorfactory:

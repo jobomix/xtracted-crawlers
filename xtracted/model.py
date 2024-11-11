@@ -78,27 +78,6 @@ class InvalidUrlException(Exception):
     pass
 
 
-class AmazonProductUrl(XtractedUrl):
-    match_url: ClassVar[Pattern] = re.compile(r'.*/dp/([A-Z0-9]{10}).*')
-
-    def model_post_init(self, __context: Any) -> None:
-        m = AmazonProductUrl.match_url.match(self.url.path)
-        if not m:
-            raise ValueError(
-                f'The url {self.url} does look like a valid amazon product URL'
-            )
-        self.url_id = f'crawl_url:{self.job_id}:{m.group(1)}'
-
-
-class UrlFactory:
-    @staticmethod
-    def new_url(url: AnyUrl, job_id: str) -> Optional[XtractedUrl]:
-        if url.path:
-            if AmazonProductUrl.match_url.match(url.path):
-                return AmazonProductUrl(job_id=job_id, url=url)
-        return None
-
-
 class CrawlJobInput(BaseModel):
     """
     Crawl job Representation. Contains mainly a set of urls.
