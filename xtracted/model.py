@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Optional, Pattern
+from typing import Optional
 
 from pydantic import (
     AfterValidator,
@@ -9,7 +9,6 @@ from pydantic import (
     BaseModel,
 )
 from typing_extensions import Annotated
-from xtracted_common.model import XtractedUrl
 
 from xtracted.crawlers.amazon.amazon_params import AmazonParams
 
