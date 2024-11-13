@@ -58,7 +58,7 @@ async def test_crawl_job_submit_create_context(
         f'crawl_url:{crawl_job.job_id}:B0931VRJT5'
     )
     assert result == {
-        'job_id': crawl_job.job_id,
+        'job_id': str(crawl_job.job_id),
         'url_id': f'crawl_url:{crawl_job.job_id}:B0931VRJT5',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT5',
         'status': 'pending',

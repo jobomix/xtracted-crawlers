@@ -1,10 +1,10 @@
-import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
 from redis.asyncio import ResponseError
 from xtracted_common.configuration import XtractedConfig
-from xtracted_common.model import CrawlJob, CrawlJobStatus, UrlFactory
+from xtracted_common.helpers.jobs import create_job
+from xtracted_common.model import CrawlJob, UrlFactory
 
 from xtracted.model import (
     CrawlJobInput,
@@ -25,7 +25,7 @@ class Queue(ABC):
         pass
 
     @abstractmethod
-    async def get_crawl_job(self, job_id: str) -> Optional[CrawlJob]:
+    async def get_crawl_job(self, job_id: int) -> Optional[CrawlJob]:
         pass
 
 
@@ -48,27 +48,19 @@ class RedisQueue(Queue):
         await redis.xack('crawl', 'crawlers', msg_id)
         await redis.aclose()
 
-    async def get_crawl_job(self, job_id: str) -> Optional[CrawlJob]:
+    async def get_crawl_job(self, job_id: int) -> Optional[CrawlJob]:
         redis = self.config.new_client()
-        crawl_job = None
         try:
-            urls = await redis.smembers(f'job:{job_id}')  # type: ignore
-            if urls:
-                crawl_job = CrawlJob(job_id=job_id, status=CrawlJobStatus.pending)
-                for url_id in urls:
-                    value = await redis.hgetall(url_id)  # type: ignore
-                    if value:
-                        xtracted_url = UrlFactory.new_url(**value)
-                        if xtracted_url:
-                            crawl_job.urls.add(xtracted_url)
+            mapping = await redis.hgetall(f'job:{job_id}')  # type: ignore
+            crawl_job = CrawlJob(job_id=job_id, **mapping) if mapping else None
         finally:
             await redis.aclose()
         return crawl_job
 
     async def submit_crawl_job(self, crawl_job_input: CrawlJobInput) -> CrawlJob:
-        job_id = str(uuid.uuid1())
         redis = self.config.new_client()
-        crawl_job = CrawlJob(job_id=job_id, status=CrawlJobStatus.pending)
+        crawl_job = await create_job(redis)
+        job_id = crawl_job.job_id
         await self._create_crawlers_group()
         # add those urls to the main crawl stream
         for url in crawl_job_input.urls:
@@ -78,7 +70,7 @@ class RedisQueue(Queue):
             )
 
             if crawl_url:
-                await redis.sadd(f'job:{job_id}', crawl_url.url_id)  # type:ignore
+                await redis.sadd(f'job_urls:{job_id}', crawl_url.url_id)  # type:ignore
 
                 url_mapping = crawl_url.model_dump(mode='json')
 
@@ -87,8 +79,6 @@ class RedisQueue(Queue):
                 )
 
                 await redis.xadd(name='crawl', fields=url_mapping)  # type: ignore
-
-                crawl_job.urls.add(crawl_url)
 
         await redis.aclose()
         return crawl_job

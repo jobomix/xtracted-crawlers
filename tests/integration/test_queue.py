@@ -27,11 +27,6 @@ async def test_submit_crawl_job_creates_a_crawl_job(
         url='https://www.amazon.co.uk/dp/B0931VRJT6',
     )
 
-    assert crawl_job.status == CrawlJobStatus.pending
-    assert len(crawl_job.urls) == 2
-    assert first_url in crawl_job.urls
-    assert second_url in crawl_job.urls
-
 
 async def test_submit_crawl_job_creates_metadata(
     queue: Queue, redis_client: Redis
@@ -53,14 +48,14 @@ async def test_submit_crawl_job_creates_metadata(
     )
 
     assert first_redis_hash_key == {
-        'job_id': crawl_job.job_id,
+        'job_id': str(crawl_job.job_id),
         'url_id': f'crawl_url:{crawl_job.job_id}:B0931VRJT5',
         'retries': '0',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT5',
         'status': 'pending',
     }
     assert second_redis_hash_key == {
-        'job_id': crawl_job.job_id,
+        'job_id': str(crawl_job.job_id),
         'url_id': f'crawl_url:{crawl_job.job_id}:B0931VRJT6',
         'retries': '0',
         'url': 'https://www.amazon.co.uk/dp/B0931VRJT6',
@@ -98,7 +93,7 @@ async def test_submit_crawl_jobs_creates_urls_set(
         )
     )
 
-    urls = await redis_client.smembers(f'job:{crawl_job.job_id}')  # type: ignore
+    urls = await redis_client.smembers(f'job_urls:{crawl_job.job_id}')  # type: ignore
     assert len(urls) == 2
 
     assert f'crawl_url:{crawl_job.job_id}:B0931VRJT5' in urls
@@ -118,4 +113,3 @@ async def test_get_job_by_id_retrieves_urls(queue: Queue, redis_client: Redis) -
     retrieved_job = await queue.get_crawl_job(crawl_job.job_id)
     assert retrieved_job is not None
     assert retrieved_job.job_id == crawl_job.job_id
-    assert len(retrieved_job.urls) == 2

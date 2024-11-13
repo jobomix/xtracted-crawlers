@@ -144,10 +144,10 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
         XtractedUrl,
         await ctx.enqueue(AnyHttpUrl('https://www.amazon.co.uk/dp/B0931VRJAA')),
     )
-    assert remote_url['job_id'] == enqueued_url.job_id
+    assert remote_url['job_id'] == str(enqueued_url.job_id)
 
     # enqueue appends the url id to the job set
-    members = await redis_client.smembers(f'job:{enqueued_url.job_id}')  # type: ignore
+    members = await redis_client.smembers(f'job_urls:{enqueued_url.job_id}')  # type: ignore
 
     assert len(members) == 2
     assert enqueued_url.url_id in members
@@ -180,7 +180,7 @@ async def test_enqueue_do_nmothing_when_url_exists(
     assert enqueued_url is None
 
     # enqueue appends the url id to the job set
-    members = await redis_client.smembers(f'job:{remote_url["job_id"]}')
+    members = await redis_client.smembers(f'job_urls:{remote_url["job_id"]}')
 
     assert len(members) == 1
 

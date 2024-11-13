@@ -68,7 +68,7 @@ class RedisCrawlSyncer(CrawlSyncer):
         exist = await self.redis.hget(name=to_enqueue.url_id, key='url_id')  # type: ignore
 
         if not exist:
-            await self.redis.sadd(f'job:{to_enqueue.job_id}', to_enqueue.url_id)  # type:ignore
+            await self.redis.sadd(f'job_urls:{to_enqueue.job_id}', to_enqueue.url_id)  # type:ignore
 
             url_mapping = to_enqueue.model_dump(mode='json')
 
