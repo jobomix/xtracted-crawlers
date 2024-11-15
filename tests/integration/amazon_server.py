@@ -2,8 +2,7 @@ import asyncio
 import pathlib
 
 from aiohttp import web
-
-from xtracted.model import amazon_url_asin_path
+from xtracted_common.model import amazon_url_asin_path
 
 filepath = pathlib.Path(__file__).resolve().parent.parent
 

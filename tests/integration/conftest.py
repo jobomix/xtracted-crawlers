@@ -7,6 +7,7 @@ from pydantic import RedisDsn
 from pytest_docker.plugin import Services
 from redis.asyncio.client import Redis
 from xtracted_common.configuration import XtractedConfig
+from xtracted_common.services.jobs_service import DefaultJobsService, JobsService
 
 from xtracted.queue import Queue, RedisQueue
 
@@ -53,3 +54,10 @@ async def conf() -> AsyncGenerator[TestConfig, Any]:
 @pytest.fixture(scope='function')
 async def queue(conf: TestConfig, redis_client: Redis) -> AsyncGenerator[Queue, Any]:
     yield RedisQueue(conf)
+
+
+@pytest.fixture(scope='function')
+async def job_service(
+    conf: TestConfig, redis_client: Redis
+) -> AsyncGenerator[JobsService, Any]:
+    yield DefaultJobsService(config=conf)

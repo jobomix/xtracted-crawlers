@@ -1,10 +1,9 @@
 import asyncio
 
 from xtracted_common.configuration import XtractedConfigFromDotEnv
+from xtracted_common.model import CrawlJobInput
 
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
-from xtracted.model import CrawlJobFreeInput, CrawlJobInput
-from xtracted.queue import RedisQueue
 
 config = XtractedConfigFromDotEnv()
 
@@ -17,22 +16,22 @@ async def _remove_keys() -> None:
 
 
 async def _send_message() -> None:
-    queue = RedisQueue(config=XtractedConfigFromDotEnv())
-    producer = CrawlJobProducer(queue)
+    producer = CrawlJobProducer(config=config)
 
     await producer.submit(
+        'dummy-uid',
         CrawlJobInput(
             urls={'https://www.amazon.co.uk/dp/B0B2SDTSJ8?ref=MarsFS_TAB_sun'}
-        )
+        ),
     )
 
 
 async def _send_messages() -> None:
-    queue = RedisQueue(config=XtractedConfigFromDotEnv())
-    producer = CrawlJobProducer(queue)
+    producer = CrawlJobProducer(config=config)
 
     await producer.submit(
-        CrawlJobFreeInput(
+        'dummy-uid',
+        CrawlJobInput(
             urls={
                 'http://localhost:8080/dp/B0BXD1PRJQ?x=foo&bar=y',
                 'http://localhost:8080/dp/B0C346GMKS?x=foo&bar=y',
@@ -55,7 +54,7 @@ async def _send_messages() -> None:
                 'http://localhost:8080/dp/B07Y6FH6XK?x=foo&bar=y',
                 'http://localhost:8080/dp/B08HMWZBXC?x=foo&bar=y',
             }
-        )
+        ),
     )
 
 

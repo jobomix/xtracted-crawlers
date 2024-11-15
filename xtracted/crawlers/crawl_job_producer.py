@@ -1,25 +1,24 @@
 import asyncio
 
-from xtracted_common.configuration import XtractedConfigFromDotEnv
-from xtracted_common.model import CrawlJob
-
-from xtracted.model import CrawlJobInput
-from xtracted.queue import Queue, RedisQueue
+from xtracted_common.configuration import XtractedConfig, XtractedConfigFromDotEnv
+from xtracted_common.model import CrawlJob, CrawlJobInput
+from xtracted_common.services.jobs_service import DefaultJobsService
 
 
 class CrawlJobProducer:
-    def __init__(self, queue: Queue):
-        self.queue = queue
+    def __init__(self, config: XtractedConfig):
+        self.job_service = DefaultJobsService(config=config)
 
-    async def submit(self, job: CrawlJobInput) -> CrawlJob:
-        crawl_job = await self.queue.submit_crawl_job(job)
+    async def submit(self, uid: str, job: CrawlJobInput) -> CrawlJob:
+        crawl_job = await self.job_service.submit_job(uid=uid, crawl_job_input=job)
         return crawl_job
 
 
 if __name__ == '__main__':
     config = XtractedConfigFromDotEnv()
-    queue = RedisQueue(config)
-    producer = CrawlJobProducer(queue=queue)
+    producer = CrawlJobProducer(config=config)
     asyncio.run(
-        producer.submit(CrawlJobInput(urls={'https://www.amazon.co.uk/dp/B0931VRJT5'}))
+        producer.submit(
+            'dummy-uid', CrawlJobInput(urls={'https://www.amazon.co.uk/dp/B0931VRJT5'})
+        )
     )

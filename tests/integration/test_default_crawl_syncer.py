@@ -4,17 +4,22 @@ from unittest.mock import Mock
 from pydantic import AnyHttpUrl, AnyUrl
 from pytest import fail
 from redis.asyncio import Redis, ResponseError
-from xtracted_common.model import AmazonProductUrl, CrawlUrlStatus, XtractedUrl
+from xtracted_common.configuration import XtractedConfig
+from xtracted_common.model import (
+    AmazonProductUrl,
+    CrawlJobInput,
+    CrawlUrlStatus,
+    XtractedUrl,
+)
+from xtracted_common.services.jobs_service import JobsService
 from xtracted_common.storage import Storage
 
 from xtracted.context import DefaultCrawlContext, RedisCrawlSyncer
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
-from xtracted.model import CrawlJobInput
-from xtracted.queue import Queue
 
 
 async def new_default_crawl_context(
-    queue: Queue, redis_client: Redis
+    job_service: JobsService, redis_client: Redis, conf: XtractedConfig
 ) -> DefaultCrawlContext:
     async def _create_crawlers_group() -> None:
         try:
@@ -26,13 +31,14 @@ async def new_default_crawl_context(
     await _create_crawlers_group()
     storage = Mock(spec=Storage)
     syncer = RedisCrawlSyncer(redis=redis_client)
-    producer = CrawlJobProducer(queue=queue)
+    producer = CrawlJobProducer(config=conf)
     crawl_job = await producer.submit(
+        'dummy-user',
         CrawlJobInput(
             urls={
                 AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
             }
-        )
+        ),
     )
 
     crawl_url = AmazonProductUrl(
@@ -62,9 +68,11 @@ async def new_default_crawl_context(
 
 
 async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
-    queue: Queue, redis_client: Redis
+    job_service: JobsService, redis_client: Redis, conf: XtractedConfig
 ) -> None:
-    ctx = await new_default_crawl_context(queue=queue, redis_client=redis_client)
+    ctx = await new_default_crawl_context(
+        job_service=job_service, redis_client=redis_client, conf=conf
+    )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
     remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
     assert remote_url['status'] == 'pending'
@@ -102,8 +110,12 @@ async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
     assert crawl_url.retries == 1
 
 
-async def test_context_switch_to_running(queue: Queue, redis_client: Redis) -> None:
-    ctx = await new_default_crawl_context(queue=queue, redis_client=redis_client)
+async def test_context_switch_to_running(
+    job_service: JobsService, redis_client: Redis, conf: XtractedConfig
+) -> None:
+    ctx = await new_default_crawl_context(
+        job_service=job_service, redis_client=redis_client, conf=conf
+    )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
     remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
     assert remote_url['status'] == 'pending'
@@ -117,8 +129,12 @@ async def test_context_switch_to_running(queue: Queue, redis_client: Redis) -> N
     assert pending['pending'] == 1
 
 
-async def test_context_switch_to_complete(queue: Queue, redis_client: Redis) -> None:
-    ctx = await new_default_crawl_context(queue=queue, redis_client=redis_client)
+async def test_context_switch_to_complete(
+    job_service: JobsService, redis_client: Redis, conf: XtractedConfig
+) -> None:
+    ctx = await new_default_crawl_context(
+        job_service=job_service, redis_client=redis_client, conf=conf
+    )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
     remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
     assert remote_url['status'] == 'pending'
@@ -133,9 +149,11 @@ async def test_context_switch_to_complete(queue: Queue, redis_client: Redis) -> 
 
 
 async def test_enqueue_add_the_url_to_the_crawl_stream(
-    queue: Queue, redis_client: Redis
+    job_service: JobsService, redis_client: Redis, conf: XtractedConfig
 ) -> None:
-    ctx = await new_default_crawl_context(queue=queue, redis_client=redis_client)
+    ctx = await new_default_crawl_context(
+        job_service=job_service, redis_client=redis_client, conf=conf
+    )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
     remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
     assert remote_url['status'] == 'pending'
@@ -166,9 +184,11 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
 
 
 async def test_enqueue_do_nmothing_when_url_exists(
-    queue: Queue, redis_client: Redis
+    job_service: JobsService, redis_client: Redis, conf: XtractedConfig
 ) -> None:
-    ctx = await new_default_crawl_context(queue=queue, redis_client=redis_client)
+    ctx = await new_default_crawl_context(
+        job_service=job_service, redis_client=redis_client, conf=conf
+    )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
     remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
     assert remote_url['status'] == 'pending'
