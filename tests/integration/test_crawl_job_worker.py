@@ -37,7 +37,7 @@ async def test_crawl_job_worker_happy_path(
 
     await worker.start()
     await asyncio.sleep(1)
-    crawl_job = await producer.submit(
+    await producer.submit(
         'dummy-uid',
         CrawlJobInput(
             urls={
@@ -52,7 +52,9 @@ async def test_crawl_job_worker_happy_path(
     crawl_url = cast(AmazonProductUrl, storage.append.call_args.args[0])
     data = cast(dict[str, Any], storage.append.call_args.args[1])
     storage.append.assert_called_once()
-    assert crawl_url.url_id == f'crawl_url:{crawl_job.job_id}:B01GFPWTI4'
+    assert crawl_url.uid == 'dummy-uid'
+    assert crawl_url.job_id == 1
+    assert crawl_url.url_id == 'B01GFPWTI4'  # type: ignore
     assert crawl_url.status == CrawlUrlStatus.complete
     assert data['asin'] == 'B01GFPWTI4'
     assert data['url'] == f'http://localhost:{server.port}/dp/B01GFPWTI4?x=foo&bar=y'

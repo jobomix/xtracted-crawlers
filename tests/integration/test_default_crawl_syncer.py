@@ -33,7 +33,7 @@ async def new_default_crawl_context(
     syncer = RedisCrawlSyncer(redis=redis_client)
     producer = CrawlJobProducer(config=conf)
     crawl_job = await producer.submit(
-        'dummy-user',
+        'dummy-uid',
         CrawlJobInput(
             urls={
                 AnyUrl('https://www.amazon.co.uk/dp/B0931VRJT5'),
@@ -42,7 +42,9 @@ async def new_default_crawl_context(
     )
 
     crawl_url = AmazonProductUrl(
-        url='https://www.amazon.co.uk/dp/B0931VRJT5', job_id=crawl_job.job_id
+        url='https://www.amazon.co.uk/dp/B0931VRJT5',
+        job_id=crawl_job.job_id,
+        uid='dummy-uid',
     )
     res = await redis_client.xreadgroup(
         groupname='crawlers',
@@ -74,7 +76,7 @@ async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     res = await redis_client.xreadgroup(
@@ -117,12 +119,12 @@ async def test_context_switch_to_running(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     await ctx.set_running()
     assert ctx._crawl_url.status == CrawlUrlStatus.running  # type: ignore
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)
     assert remote_url['status'] == 'running'
 
     pending = await redis_client.xpending('crawl', 'crawlers')
@@ -136,12 +138,12 @@ async def test_context_switch_to_complete(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     await ctx.complete(data={'foo': 'bar'})
     assert ctx._crawl_url.status == CrawlUrlStatus.complete  # type: ignore
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)
     assert remote_url['status'] == 'complete'
 
     pending = await redis_client.xpending('crawl', 'crawlers')
@@ -155,7 +157,7 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     enqueued_url = cast(
@@ -165,7 +167,9 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
     assert remote_url['job_id'] == str(enqueued_url.job_id)
 
     # enqueue appends the url id to the job set
-    members = await redis_client.smembers(f'job_urls:{enqueued_url.job_id}')  # type: ignore
+    members = await redis_client.smembers(
+        f'u:{enqueued_url.uid}:job:{enqueued_url.job_id}:urls'
+    )  # type: ignore
 
     assert len(members) == 2
     assert enqueued_url.url_id in members
@@ -183,14 +187,14 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
     assert len(res) == 1
 
 
-async def test_enqueue_do_nmothing_when_url_exists(
+async def test_enqueue_do_nothing_when_url_exists(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig
 ) -> None:
     ctx = await new_default_crawl_context(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_id)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     enqueued_url = cast(
@@ -200,8 +204,7 @@ async def test_enqueue_do_nmothing_when_url_exists(
     assert enqueued_url is None
 
     # enqueue appends the url id to the job set
-    members = await redis_client.smembers(f'job_urls:{remote_url["job_id"]}')
-
+    members = await redis_client.smembers('u:dummy-uid:job:1:urls')
     assert len(members) == 1
 
     # enqueue creates a stream even to the consumer group crawlers

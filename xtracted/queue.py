@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from pydantic import AnyHttpUrl
 from xtracted_common.configuration import XtractedConfig
 
 
@@ -9,7 +10,7 @@ class Queue(ABC):
         pass
 
     @abstractmethod
-    async def enqueue(self) -> None:
+    async def enqueue(self, url: AnyHttpUrl) -> None:
         pass
 
 
@@ -18,9 +19,11 @@ class RedisQueue(Queue):
         self.config = config
 
     async def ack(self, msg_id: str) -> None:
+        """Ack message"""
         redis = self.config.new_client()
         await redis.xack('crawl', 'crawlers', msg_id)
         await redis.aclose()
 
-    async def enqueue(self) -> None:
+    async def enqueue(self, url: AnyHttpUrl) -> None:
+        """Enqueue a URL"""
         pass
