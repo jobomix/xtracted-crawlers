@@ -28,6 +28,7 @@ ruff = "^0.6.2"
 mypy = "^1.11.1"
 poethepoet = "^0.29.0"
 pytest-aiohttp = "^1.0.5"
+xtracted-tests = { path = "../xtracted-tests/",  develop=true }
 
 [build-system]
 requires = ["poetry-core"]
