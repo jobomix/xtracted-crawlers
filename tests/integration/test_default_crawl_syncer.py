@@ -76,7 +76,7 @@ async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     res = await redis_client.xreadgroup(
@@ -119,12 +119,12 @@ async def test_context_switch_to_running(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     await ctx.set_running()
     assert ctx._crawl_url.status == CrawlUrlStatus.running  # type: ignore
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)
     assert remote_url['status'] == 'running'
 
     pending = await redis_client.xpending('crawl', 'crawlers')
@@ -138,12 +138,12 @@ async def test_context_switch_to_complete(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     await ctx.complete(data={'foo': 'bar'})
     assert ctx._crawl_url.status == CrawlUrlStatus.complete  # type: ignore
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)
     assert remote_url['status'] == 'complete'
 
     pending = await redis_client.xpending('crawl', 'crawlers')
@@ -157,7 +157,7 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     enqueued_url = cast(
@@ -172,7 +172,7 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
     )  # type: ignore
 
     assert len(members) == 2
-    assert enqueued_url.url_id in members
+    assert enqueued_url._url_id in members
 
     # enqueue creates a stream even to the consumer group crawlers
     res = await redis_client.xreadgroup(
@@ -194,7 +194,7 @@ async def test_enqueue_do_nothing_when_url_exists(
         job_service=job_service, redis_client=redis_client, conf=conf
     )
     assert ctx._crawl_url.status == CrawlUrlStatus.pending
-    remote_url = await redis_client.hgetall(ctx._crawl_url.url_key)  # type: ignore
+    remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)  # type: ignore
     assert remote_url['status'] == 'pending'
 
     enqueued_url = cast(

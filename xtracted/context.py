@@ -57,29 +57,29 @@ class RedisCrawlSyncer(CrawlSyncer):
 
     async def sync(self, crawl_url: XtractedUrl) -> None:
         await self.redis.hset(
-            crawl_url.url_key,  # type: ignore
+            crawl_url._url_key,
             mapping=crawl_url.model_dump(mode='json'),
-        )
+        )  # type: ignore
         return None
 
     async def replay(self, crawl_url: XtractedUrl) -> None:
         await self.redis.xadd(name='crawl', fields=crawl_url.model_dump(mode='json'))  # type: ignore
 
     async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
-        exist = await self.redis.hget(name=to_enqueue.url_key, key='url_id')  # type: ignore
+        exist = await self.redis.hget(name=to_enqueue._url_key, key='url')  # type: ignore
 
         if not exist:
             await self.redis.sadd(
                 f'u:{to_enqueue.uid}:job:{to_enqueue.job_id}:urls',
-                to_enqueue.url_id,  # type:ignore
-            )
+                to_enqueue._url_id,
+            )  # type: ignore
 
             url_mapping = to_enqueue.model_dump(mode='json')
 
             await self.redis.hset(
-                name=to_enqueue.url_key,  # type: ignore
+                name=to_enqueue._url_key,
                 mapping=url_mapping,
-            )
+            )  # type: ignore
             await self.redis.xadd(name='crawl', fields=url_mapping)  # type: ignore
             return True
         return False

@@ -131,6 +131,7 @@ if __name__ == '__main__':
             storage=TempFileStorage(),
             crawl_syncer=DummyCrawlSyncer(),
             crawl_url=AmazonProductUrl(
+                uid='dummy-uid',
                 job_id='123456',
                 url='file:///home/nono/projects/xtracted/crawlers-python/tests/en_GB/gopro.html',
             ),

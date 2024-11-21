@@ -63,6 +63,7 @@ strict = true
 implicit_reexport = true
 disable_error_code = "type-arg"  # allow generic types without type arguments
 disallow_untyped_defs = true 
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = [

@@ -54,7 +54,7 @@ async def test_crawl_job_worker_happy_path(
     storage.append.assert_called_once()
     assert crawl_url.uid == 'dummy-uid'
     assert crawl_url.job_id == 1
-    assert crawl_url.url_id == 'B01GFPWTI4'  # type: ignore
+    assert crawl_url._url_id == 'B01GFPWTI4'
     assert crawl_url.status == CrawlUrlStatus.complete
     assert data['asin'] == 'B01GFPWTI4'
     assert data['url'] == f'http://localhost:{server.port}/dp/B01GFPWTI4?x=foo&bar=y'
