@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from xtracted_common.configuration import XtractedConfigFromDotEnv
 from xtracted_common.model import CrawlJobInput
@@ -19,7 +20,7 @@ async def _send_message() -> None:
     producer = CrawlJobProducer(config=config)
 
     await producer.submit(
-        'dummy-uid',
+        os.environ['USER_KEY'],
         CrawlJobInput(
             urls={'https://www.amazon.co.uk/dp/B0B2SDTSJ8?ref=MarsFS_TAB_sun'}
         ),
@@ -30,7 +31,7 @@ async def _send_messages() -> None:
     producer = CrawlJobProducer(config=config)
 
     await producer.submit(
-        'dummy-uid',
+        os.environ['USER_KEY'],
         CrawlJobInput(
             urls={
                 'http://localhost:8080/dp/B0BXD1PRJQ?x=foo&bar=y',

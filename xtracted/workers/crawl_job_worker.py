@@ -7,7 +7,7 @@ from redis.asyncio import ResponseError
 from redis.asyncio.client import Redis
 from redis.asyncio.cluster import RedisCluster
 from xtracted_common.configuration import XtractedConfigFromDotEnv
-from xtracted_common.storage import Storage, TempFileStorage
+from xtracted_common.storage import DBStorage, Storage
 
 from xtracted.context import RedisCrawlSyncer
 from xtracted.crawlers.extractor_factory import Extractorfactory
@@ -104,7 +104,7 @@ class CrawlJobWorker:
 if __name__ == '__main__':
     config = XtractedConfigFromDotEnv()
     worker = CrawlJobWorker(
-        client=config.new_client(), consumer_name='dummy', storage=TempFileStorage()
+        client=config.new_client(), consumer_name='dummy', storage=DBStorage(config)
     )
     with asyncio.Runner() as runner:
         try:
