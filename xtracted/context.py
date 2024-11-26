@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from os import pipe
 from typing import Any, Optional
 
 from pydantic import AnyHttpUrl
@@ -56,10 +57,21 @@ class RedisCrawlSyncer(CrawlSyncer):
         await self.redis.xack('crawl', 'crawlers', message_id)
 
     async def sync(self, crawl_url: XtractedUrl) -> None:
-        await self.redis.hset(
+        pipeline = self.redis.pipeline()
+        for status in CrawlUrlStatus:
+            pipeline.srem(
+                f'u:{crawl_url.uid}:job:{crawl_url.job_id}:urls:{status.name}',
+                crawl_url._url_id,
+            )
+            pipeline.sadd(
+                f'u:{crawl_url.uid}:job:{crawl_url.job_id}:urls:{crawl_url.status.name}',
+                crawl_url._url_id,
+            )
+        pipeline.hset(
             crawl_url._url_key,
             mapping=crawl_url.model_dump(mode='json'),
-        )  # type: ignore
+        )
+        await pipeline.execute()
         return None
 
     async def replay(self, crawl_url: XtractedUrl) -> None:
@@ -69,18 +81,22 @@ class RedisCrawlSyncer(CrawlSyncer):
         exist = await self.redis.hget(name=to_enqueue._url_key, key='url')  # type: ignore
 
         if not exist:
-            await self.redis.sadd(
+            pipeline = self.redis.pipeline()
+            pipeline.sadd(
                 f'u:{to_enqueue.uid}:job:{to_enqueue.job_id}:urls',
                 to_enqueue._url_id,
-            )  # type: ignore
-
+            )
+            pipeline.sadd(
+                f'u:{to_enqueue.uid}:job:{to_enqueue.job_id}:urls:{to_enqueue.status.name}',
+                to_enqueue._url_id,
+            )
             url_mapping = to_enqueue.model_dump(mode='json')
-
-            await self.redis.hset(
+            pipeline.hset(
                 name=to_enqueue._url_key,
                 mapping=url_mapping,
-            )  # type: ignore
-            await self.redis.xadd(name='crawl', fields=url_mapping)  # type: ignore
+            )
+            pipeline.xadd(name='crawl', fields=url_mapping)  # type: ignore
+            await pipeline.execute()
             return True
         return False
 

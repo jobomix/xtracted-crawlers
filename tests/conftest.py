@@ -14,23 +14,23 @@ logger = logging.getLogger(__name__)
 pytest_plugins = 'xtracted_tests.fixtures'
 
 
-class TestConfig(XtractedConfig):
+class TConfig(XtractedConfig):
     redis_cluster_url: RedisDsn = 'redis://'  # type: ignore
     db_url: str = 'postgresql://postgres:postgres@localhost:5432/postgres'
 
 
 @pytest.fixture(scope='function')
-async def queue(conf: TestConfig, redis_client: Redis) -> AsyncGenerator[Queue, Any]:
+async def queue(conf: TConfig, redis_client: Redis) -> AsyncGenerator[Queue, Any]:
     yield RedisQueue(conf)
 
 
 @pytest.fixture(scope='session')
-async def conf() -> AsyncGenerator[TestConfig, Any]:
-    yield TestConfig()
+async def conf() -> AsyncGenerator[TConfig, Any]:
+    yield TConfig()
 
 
 @pytest.fixture(scope='function')
 async def job_service(
-    conf: TestConfig, redis_client: Redis
+    conf: TConfig, redis_client: Redis
 ) -> AsyncGenerator[JobsService, Any]:
     yield DefaultJobsService(config=conf)

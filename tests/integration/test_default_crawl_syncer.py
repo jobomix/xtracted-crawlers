@@ -69,6 +69,56 @@ async def new_default_crawl_context(
     )
 
 
+async def _urls_status_is(
+    redis_client: Redis, crawl_url: XtractedUrl, expected_status: CrawlUrlStatus
+) -> bool:
+    statuses = []
+    for status in CrawlUrlStatus:
+        if status != expected_status:
+            statuses.append(status)
+
+    for status in statuses:
+        not_there = await redis_client.sismember(  # type:ignore
+            f'u:{crawl_url.uid}:job:{crawl_url.job_id}:urls:{status.name}',
+            crawl_url._url_id,
+        )
+        assert not_there is not None and not_there == 0
+
+    res = await redis_client.sismember(  # type:ignore
+        f'u:{crawl_url.uid}:job:{crawl_url.job_id}:urls:{expected_status.name}',
+        crawl_url._url_id,
+    )
+    return res is not None and res == 1
+
+
+async def urls_status_is_error(
+    redis_client: Redis,
+    crawl_url: XtractedUrl,
+) -> bool:
+    return await _urls_status_is(redis_client, crawl_url, CrawlUrlStatus.error)
+
+
+async def urls_status_is_pending(
+    redis_client: Redis,
+    crawl_url: XtractedUrl,
+) -> bool:
+    return await _urls_status_is(redis_client, crawl_url, CrawlUrlStatus.pending)
+
+
+async def urls_status_is_complete(
+    redis_client: Redis,
+    crawl_url: XtractedUrl,
+) -> bool:
+    return await _urls_status_is(redis_client, crawl_url, CrawlUrlStatus.complete)
+
+
+async def urls_status_is_running(
+    redis_client: Redis,
+    crawl_url: XtractedUrl,
+) -> bool:
+    return await _urls_status_is(redis_client, crawl_url, CrawlUrlStatus.running)
+
+
 async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig
 ) -> None:
@@ -111,6 +161,8 @@ async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
     assert crawl_url.status == CrawlUrlStatus.error
     assert crawl_url.retries == 1
 
+    assert await urls_status_is_error(redis_client, crawl_url)
+
 
 async def test_context_switch_to_running(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig
@@ -126,6 +178,7 @@ async def test_context_switch_to_running(
     assert ctx._crawl_url.status == CrawlUrlStatus.running  # type: ignore
     remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)
     assert remote_url['status'] == 'running'
+    assert await urls_status_is_running(redis_client, ctx._crawl_url)
 
     pending = await redis_client.xpending('crawl', 'crawlers')
     assert pending['pending'] == 1
@@ -145,6 +198,7 @@ async def test_context_switch_to_complete(
     assert ctx._crawl_url.status == CrawlUrlStatus.complete  # type: ignore
     remote_url = await redis_client.hgetall(ctx._crawl_url._url_key)
     assert remote_url['status'] == 'complete'
+    assert await urls_status_is_complete(redis_client, ctx._crawl_url)
 
     pending = await redis_client.xpending('crawl', 'crawlers')
     assert pending['pending'] == 0
@@ -171,10 +225,13 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
         f'u:{enqueued_url.uid}:job:{enqueued_url.job_id}:urls'
     )  # type: ignore
 
+    assert await urls_status_is_pending(redis_client, ctx._crawl_url)
+    assert await urls_status_is_pending(redis_client, enqueued_url)
+
     assert len(members) == 2
     assert enqueued_url._url_id in members
 
-    # enqueue creates a stream even to the consumer group crawlers
+    # enqueue creates a stream event to the consumer group crawlers
     res = await redis_client.xreadgroup(
         groupname='crawlers',
         consumername='dummy',
@@ -207,7 +264,7 @@ async def test_enqueue_do_nothing_when_url_exists(
     members = await redis_client.smembers('u:dummy-uid:job:1:urls')
     assert len(members) == 1
 
-    # enqueue creates a stream even to the consumer group crawlers
+    # enqueue creates a stream event to the consumer group crawlers
     res = await redis_client.xreadgroup(
         groupname='crawlers',
         consumername='dummy',

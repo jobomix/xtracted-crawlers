@@ -1,12 +1,10 @@
 import asyncio
 import logging
 from asyncio import CancelledError, Task
-from typing import Any
+from typing import Any, Optional
 
 from redis.asyncio import ResponseError
-from redis.asyncio.client import Redis
-from redis.asyncio.cluster import RedisCluster
-from xtracted_common.configuration import XtractedConfigFromDotEnv
+from xtracted_common.configuration import XtractedConfig, XtractedConfigFromDotEnv
 from xtracted_common.storage import DBStorage, Storage
 
 from xtracted.context import RedisCrawlSyncer
@@ -20,11 +18,14 @@ class CrawlJobWorker:
     def __init__(
         self,
         *,
-        client: Redis | RedisCluster,
+        config: XtractedConfig,
         consumer_name: str,
-        storage: Storage,
+        storage: Optional[Storage] = None,
     ) -> None:
+        client = config.new_client()
         crawl_syncer = RedisCrawlSyncer(redis=client)
+        store = storage if storage else DBStorage(config)
+        self.config = config
         self.client = client
         self.consumer_name = consumer_name
         self.background_tasks = set[Task]()
@@ -32,7 +33,7 @@ class CrawlJobWorker:
         self.storage = storage
         self.crawl_syncer = crawl_syncer
         self.extractor_factory = Extractorfactory(
-            storage=storage, crawl_syncer=crawl_syncer
+            storage=store, crawl_syncer=crawl_syncer
         )
 
     async def start(self) -> None:
@@ -56,26 +57,27 @@ class CrawlJobWorker:
                 await self.client.xgroup_create('crawl', 'crawlers', mkstream=True)
                 logger.info('crawler group "crawlers" created.')
 
-    async def crawl(self, res: Any) -> None:
+    def crawl(self, res: Any) -> None:
         logger.info('stream message received')
-        x = res[0][1]
-        message_id = x[0][0]
-        mapping = x[0][1]
+        crawl_msgs = res[0][1]
+        for message_id, mapping in crawl_msgs:
+            extractor = self.extractor_factory.new_instance(
+                message_id=message_id, mapping=mapping
+            )
 
-        extractor = self.extractor_factory.new_instance(
-            message_id=message_id, mapping=mapping
-        )
-
-        if extractor:
-            await extractor.crawl()
+            if extractor:
+                print(f"createing crawl task for url: {mapping['url']}")
+                crawl_task = asyncio.create_task(extractor.crawl())
+                self.crawling_tasks.add(crawl_task)
+                crawl_task.add_done_callback(self.crawling_tasks.discard)
 
     async def consume(self) -> None:
         await self._create_crawlers_group()
         try:
             while True:
-                while len(self.crawling_tasks) > 2:
+                while len(self.crawling_tasks) > self.config.max_tasks_per_worker:
                     logger.info(
-                        f'concurrent tasks running: {len(self.crawling_tasks)} -> sleeping...'
+                        f'Number concurrent tasks running for worker {self.consumer_name}: {len(self.crawling_tasks)} / {self.config.max_tasks_per_worker}'
                     )
                     await asyncio.sleep(1)
 
@@ -83,15 +85,13 @@ class CrawlJobWorker:
                     groupname='crawlers',
                     consumername=self.consumer_name,
                     streams={'crawl': '>'},
-                    count=1,
+                    count=self.config.max_tasks_per_worker,
                     block=5000,
                     noack=False,
                 )
 
                 if res and len(res) == 1:
-                    crawl_task = asyncio.create_task(self.crawl(res))
-                    self.crawling_tasks.add(crawl_task)
-                    crawl_task.add_done_callback(self.crawling_tasks.discard)
+                    self.crawl(res)
         except CancelledError:
             await self.client.aclose()
             logger.info('consume task cancelled.Connection closed')
@@ -103,9 +103,7 @@ class CrawlJobWorker:
 
 if __name__ == '__main__':
     config = XtractedConfigFromDotEnv()
-    worker = CrawlJobWorker(
-        client=config.new_client(), consumer_name='dummy', storage=DBStorage(config)
-    )
+    worker = CrawlJobWorker(config=config, consumer_name='dummy')
     with asyncio.Runner() as runner:
         try:
             runner.run(worker.main())
