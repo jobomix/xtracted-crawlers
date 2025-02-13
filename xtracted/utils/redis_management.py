@@ -10,7 +10,7 @@ config = XtractedConfigFromDotEnv()
 
 
 async def _remove_keys() -> None:
-    client = config.new_client()
+    client = config.new_redis_client()
     await client.initialize()
     await client.flushall()
     await client.aclose()

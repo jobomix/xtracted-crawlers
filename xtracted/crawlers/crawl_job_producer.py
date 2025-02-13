@@ -1,7 +1,7 @@
 import asyncio
 
 from xtracted_common.configuration import XtractedConfig, XtractedConfigFromDotEnv
-from xtracted_common.model import CrawlJobInternal, CrawlJobInput
+from xtracted_common.model import CrawlJobInput, CrawlJobInternal
 from xtracted_common.services.jobs_service import DefaultJobsService
 
 

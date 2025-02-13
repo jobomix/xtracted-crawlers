@@ -15,14 +15,17 @@ COPY xtracted /app/xtracted
 COPY poetry.lock /app
 COPY pyproject.toml /app
 
-RUN apt update && apt install bash python3-uvloop \
-	&& curl -sSL https://install.python-poetry.org | python3 -
+RUN apt update && apt install bash python3-uvloop && curl -sSL https://install.python-poetry.org | python3 -
 
-RUN cd /app && poetry install
+RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+RUN cd /app
+RUN --mount=type=ssh poetry install
 
 RUN poetry run playwright install
+RUN poetry run playwright install-deps
 
-CMD [ "poetry", "run", "poe", "worker" ]
+CMD [ "poetry", "run", "poe", "crawl_job_worker" ]
 
 # FROM alpine
 # COPY --from=build /app/server /server

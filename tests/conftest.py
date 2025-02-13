@@ -15,7 +15,7 @@ pytest_plugins = 'xtracted_tests.fixtures'
 
 
 class TConfig(XtractedConfig):
-    redis_cluster_url: RedisDsn = 'redis://'  # type: ignore
+    redis_url: RedisDsn = 'redis://'  # type: ignore
     db_url: str = 'postgresql://postgres:postgres@localhost:5432/postgres'
 
 

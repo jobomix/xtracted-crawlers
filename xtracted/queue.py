@@ -20,7 +20,7 @@ class RedisQueue(Queue):
 
     async def ack(self, msg_id: str) -> None:
         """Ack message"""
-        redis = self.config.new_client()
+        redis = self.config.new_redis_client()
         await redis.xack('crawl', 'crawlers', msg_id)
         await redis.aclose()
 

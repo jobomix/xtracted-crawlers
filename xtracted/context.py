@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from os import pipe
 from typing import Any, Optional
 
 from pydantic import AnyHttpUrl
@@ -140,6 +139,6 @@ class DefaultCrawlContext(CrawlContext):
 
     async def complete(self, data: dict[str, Any]) -> None:
         self._crawl_url.status = CrawlUrlStatus.complete
-        await self._storage.append(self._crawl_url, data)
+        await self._storage.append_crawled_data(self._crawl_url, data)
         await self._crawl_syncer.sync(self._crawl_url)
         await self._crawl_syncer.ack(self._message_id)

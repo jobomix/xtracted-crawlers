@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import platform
 from asyncio import CancelledError, Task
 from typing import Any, Optional
 
@@ -22,7 +23,7 @@ class CrawlJobWorker:
         consumer_name: str,
         storage: Optional[Storage] = None,
     ) -> None:
-        client = config.new_client()
+        client = config.new_redis_client()
         crawl_syncer = RedisCrawlSyncer(redis=client)
         store = storage if storage else DBStorage(config)
         self.config = config
@@ -66,7 +67,7 @@ class CrawlJobWorker:
             )
 
             if extractor:
-                print(f"createing crawl task for url: {mapping['url']}")
+                print(f'createing crawl task for url: {mapping["url"]}')
                 crawl_task = asyncio.create_task(extractor.crawl())
                 self.crawling_tasks.add(crawl_task)
                 crawl_task.add_done_callback(self.crawling_tasks.discard)
@@ -102,8 +103,10 @@ class CrawlJobWorker:
 
 
 if __name__ == '__main__':
+    node = platform.node()
+    logger.info(f'Starting worker with consumer name: {node}')
     config = XtractedConfigFromDotEnv()
-    worker = CrawlJobWorker(config=config, consumer_name='dummy')
+    worker = CrawlJobWorker(config=config, consumer_name=node)
     with asyncio.Runner() as runner:
         try:
             runner.run(worker.main())

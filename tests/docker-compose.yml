@@ -4,3 +4,12 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  db:
+    image: postgres:15
+    restart: always
+    shm_size: 128mb
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres

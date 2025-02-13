@@ -59,6 +59,8 @@ default              docker
 ```
 
 Next we create a new build compatible with arm64 and x86_64 and push it to our local registry:
-```
-> docker buildx build --platform linux/amd64,linux/arm64 -t docker.xtracted.io/redis-worker --push .
+```sh
+> eval $(ssh-agent)
+> ssh-add ~/.ssh/git-rsa
+> docker buildx build --platform linux/amd64,linux/arm64 --ssh default=$SSH_AUTH_SOCK -t docker.xtracted.io/xtracted-worker --push .
 ```

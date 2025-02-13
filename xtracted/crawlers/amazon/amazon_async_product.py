@@ -6,9 +6,10 @@ from urllib.parse import urlparse
 from playwright.async_api import Page, Playwright, async_playwright
 from xtracted_common.model import (
     AmazonProductUrl,
+    CrawlJobInternal,
     XtractedUrl,
 )
-from xtracted_common.storage import TempFileStorage
+from xtracted_common.storage import DBStorage, Storage
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import Extractor
@@ -55,7 +56,7 @@ class AmazonAsyncProduct(Extractor):
                     {
                         'asin': variant,
                         'detail': detail,
-                        'url': f"{'' if root_url is None else root_url}/dp/{variant}?psc=1",
+                        'url': f'{"" if root_url is None else root_url}/dp/{variant}?psc=1',
                     }
                 )
             result['variants'] = variants
@@ -126,9 +127,26 @@ if __name__ == '__main__':
         async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
             return True
 
+    class DummyStorage(Storage):
+        async def latest_job_id(self, uid: str) -> int:
+            return 0
+
+        async def save_job(self, job: CrawlJobInternal) -> None:
+            pass
+
+        async def append_crawled_data(
+            self, crawl_url: XtractedUrl, data: dict[str, Any]
+        ) -> None:
+            pass
+
+        async def get_crawled_data(
+            self, uid: str, crawl_job_id: int, offset: int, limit: int
+        ) -> list[dict[str, Any]]:
+            return []
+
     aap = AmazonAsyncProduct(
         crawl_context=DefaultCrawlContext(
-            storage=TempFileStorage(),
+            storage=DummyStorage(),
             crawl_syncer=DummyCrawlSyncer(),
             crawl_url=AmazonProductUrl(
                 uid='dummy-uid',
