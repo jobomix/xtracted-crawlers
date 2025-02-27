@@ -6,10 +6,9 @@ services:
       - "6379:6379"
 
   db:
-    image: postgres:15
-    restart: always
-    shm_size: 128mb
+    image: supabase/postgres:15.8.1.045
     ports:
       - "5432:5432"
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     environment:
       POSTGRES_PASSWORD: postgres
