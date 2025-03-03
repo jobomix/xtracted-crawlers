@@ -1728,13 +1728,13 @@ dev = ["black", "build", "flake8", "flake8-black", "isort", "jupyter-console", "
 
 [[package]]
 name = "pyright"
-version = "1.1.395"
+version = "1.1.396"
 description = "Command line wrapper for pyright"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyright-1.1.395-py3-none-any.whl", hash = "sha256:f9bc726870e740c6c77c94657734d90563a3e9765bb523b39f5860198ed75eef"},
-    {file = "pyright-1.1.395.tar.gz", hash = "sha256:53703169068c160bfb41e1b44ba3e2512492869c26cfad927e1268cb3fbb1b1c"},
+    {file = "pyright-1.1.396-py3-none-any.whl", hash = "sha256:c635e473095b9138c471abccca22b9fedbe63858e0b40d4fc4b67da041891844"},
+    {file = "pyright-1.1.396.tar.gz", hash = "sha256:142901f5908f5a0895be3d3befcc18bedcdb8cc1798deecaec86ef7233a29b03"},
 ]
 
 [package.dependencies]
@@ -1748,13 +1748,13 @@ nodejs = ["nodejs-wheel-binaries"]
 
 [[package]]
 name = "pytest"
-version = "8.3.4"
+version = "8.3.5"
 description = "pytest: simple powerful testing with Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest-8.3.4-py3-none-any.whl", hash = "sha256:50e16d954148559c9a74109af1eaf0c945ba2d8f30f0a3d3335edde19788b6f6"},
-    {file = "pytest-8.3.4.tar.gz", hash = "sha256:965370d062bce11e73868e0335abac31b4d3de0e82f4007408d242b4f8610761"},
+    {file = "pytest-8.3.5-py3-none-any.whl", hash = "sha256:c69214aa47deac29fad6c2a4f590b9c4a9fdb16a403176fe154b79c0b4d4d820"},
+    {file = "pytest-8.3.5.tar.gz", hash = "sha256:f4efe70cc14e511565ac476b57c279e12a855b11f48f212af1080ef2263d3845"},
 ]
 
 [package.dependencies]
@@ -2319,7 +2319,7 @@ types-aiofiles = "^24.1.0.20240626"
 type = "git"
 url = "git@github.com:jobomix/xtracted-common.git"
 reference = "HEAD"
-resolved_reference = "3049c66d122dc2cf411ef355ee148a284cd75ff3"
+resolved_reference = "e26b3312f43552b9bbb18a5930bd91c1e8456839"
 
 [[package]]
 name = "xtracted-tests"
@@ -2344,7 +2344,7 @@ types-aiofiles = "^24.1.0.20240626"
 type = "git"
 url = "git@github.com:jobomix/xtracted-tests.git"
 reference = "HEAD"
-resolved_reference = "e67285155a83c3a036948b772c1f1e66533139b4"
+resolved_reference = "81369328379c71c3e36b0627473ba924400ba9a2"
 
 [[package]]
 name = "yarl"

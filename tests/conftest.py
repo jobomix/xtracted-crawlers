@@ -1,10 +1,9 @@
 import logging
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, cast
 
 import pytest
-from pydantic import RedisDsn
 from redis.asyncio.client import Redis
-from xtracted_common.configuration import XtractedConfig
+from xtracted_common.configuration import TestConfig
 from xtracted_common.services.jobs_service import DefaultJobsService, JobsService
 
 from xtracted.queue import Queue, RedisQueue
@@ -14,23 +13,29 @@ logger = logging.getLogger(__name__)
 pytest_plugins = 'xtracted_tests.fixtures'
 
 
-class TConfig(XtractedConfig):
-    redis_url: RedisDsn = 'redis://'  # type: ignore
-    db_url: str = 'postgresql://postgres:postgres@localhost:5432/postgres'
-
-
 @pytest.fixture(scope='function')
-async def queue(conf: TConfig, redis_client: Redis) -> AsyncGenerator[Queue, Any]:
+async def queue(conf: TestConfig, redis_client: Redis) -> AsyncGenerator[Queue, Any]:
     yield RedisQueue(conf)
 
 
 @pytest.fixture(scope='session')
-async def conf() -> AsyncGenerator[TConfig, Any]:
-    yield TConfig()
+async def conf() -> AsyncGenerator[TestConfig, Any]:
+    yield TestConfig()
 
 
 @pytest.fixture(scope='function')
 async def job_service(
-    conf: TConfig, redis_client: Redis
+    conf: TestConfig, redis_client: Redis
 ) -> AsyncGenerator[JobsService, Any]:
     yield DefaultJobsService(config=conf)
+
+
+@pytest.fixture(scope='session')
+def project_root_path(request: Any) -> str:
+    return cast(str, request.config.rootpath)
+
+
+@pytest.fixture(scope='session')
+def docker_compose_file(project_root_path: str) -> str:
+    print(project_root_path)
+    return f'{project_root_path}/../xtracted-tests/xtracted_tests/docker-compose.yml'
