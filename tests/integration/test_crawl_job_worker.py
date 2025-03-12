@@ -13,7 +13,6 @@ from xtracted_common.model import (
 )
 from xtracted_common.storage import Storage
 
-from tests.conftest import TestConfig
 from tests.integration.amazon_server import new_web_app
 from tests.utils.common import wait
 from xtracted.crawlers.crawl_job_producer import CrawlJobProducer
@@ -22,7 +21,7 @@ from xtracted.workers.crawl_job_worker import CrawlJobWorker
 filepath = pathlib.Path(__file__).resolve().parent.parent
 
 
-class TConfig5Threads(TestConfig):
+class TConfig5Threads(XtractedConfig):
     max_tasks_per_worker: int = 5
 
 

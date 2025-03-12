@@ -1,11 +1,15 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 from pydantic import AnyHttpUrl
 from redis.asyncio import RedisCluster
 from redis.asyncio.client import Redis
+from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import CrawlUrlStatus, UrlFactory, XtractedUrl
 from xtracted_common.storage import Storage
+
+logger = logging.getLogger('crawljob-syncer')
 
 
 class CrawlSyncer(ABC):
@@ -14,7 +18,7 @@ class CrawlSyncer(ABC):
         pass
 
     @abstractmethod
-    async def ack(self, message_id: str) -> None:
+    async def ack(self, message_id: str | int) -> None:
         pass
 
     @abstractmethod
@@ -48,11 +52,42 @@ class CrawlContext(ABC):
         pass
 
 
+class PostgresCrawlSyncer(CrawlSyncer):
+    def __init__(self, config: XtractedConfig):
+        self.config = config
+
+    async def ack(self, message_id: str | int) -> None:
+        queue = await self.config.new_pgmq_client()
+        await queue.archive('job_urls', msg_id=message_id)
+
+    async def sync(self, crawl_url: XtractedUrl) -> None:
+        conn = await self.config.new_db_client()
+        try:
+            logger.info(crawl_url)
+            await conn.execute(
+                """update job_urls set status = $1 where job_id = $2 and user_id = $3 and url_id = $4""",
+                crawl_url.status,
+                crawl_url.job_id,
+                crawl_url.uid,
+                crawl_url._url_id,
+            )
+        except Exception as e:
+            logger.error(e)
+        finally:
+            await conn.close()
+
+    async def replay(self, crawl_url: XtractedUrl) -> None:
+        pass
+
+    async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
+        return False
+
+
 class RedisCrawlSyncer(CrawlSyncer):
     def __init__(self, *, redis: Redis | RedisCluster) -> None:
         self.redis = redis
 
-    async def ack(self, message_id: str) -> None:
+    async def ack(self, message_id: str | int) -> None:
         await self.redis.xack('crawl', 'crawlers', message_id)
 
     async def sync(self, crawl_url: XtractedUrl) -> None:

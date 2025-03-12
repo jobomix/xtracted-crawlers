@@ -9,7 +9,7 @@ from xtracted_common.model import (
     CrawlJobInternal,
     XtractedUrl,
 )
-from xtracted_common.storage import DBStorage, Storage
+from xtracted_common.storage import Storage
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import Extractor
@@ -115,7 +115,7 @@ class AmazonAsyncProduct(Extractor):
 if __name__ == '__main__':
 
     class DummyCrawlSyncer(CrawlSyncer):
-        async def ack(self, message_id: str) -> None:
+        async def ack(self, message_id: str | int) -> None:
             pass
 
         async def sync(self, crawl_url: XtractedUrl) -> None:
