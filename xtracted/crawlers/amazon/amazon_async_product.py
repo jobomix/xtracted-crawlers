@@ -109,7 +109,7 @@ class AmazonAsyncProduct(Extractor):
                 await self.run(playwright)
         except Exception as e:
             print('Error occurred', e)
-            await self.crawl_context.fail()
+            await self.crawl_context.fail(e)
 
 
 if __name__ == '__main__':
@@ -121,11 +121,16 @@ if __name__ == '__main__':
         async def sync(self, crawl_url: XtractedUrl) -> None:
             pass
 
-        async def replay(self, crawl_url: XtractedUrl) -> None:
+        async def report_error(self, crawl_url: XtractedUrl, error: Exception) -> None:
             pass
 
         async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
             return True
+
+        async def complete(
+            self, crawl_url: XtractedUrl, msg_id: int | str, data: dict[str, Any]
+        ) -> None:
+            return None
 
     class DummyStorage(Storage):
         async def latest_job_id(self, uid: str) -> int:

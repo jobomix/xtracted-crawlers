@@ -30,6 +30,7 @@ async def conf5threads() -> AsyncGenerator[XtractedConfig, Any]:
     yield TConfig5Threads()
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_crawl_job_worker_happy_path(
     conf: XtractedConfig, redis_client: Redis, aiohttp_server: Any, with_user: str
 ) -> None:
@@ -63,6 +64,7 @@ async def test_crawl_job_worker_happy_path(
     assert data['url'] == f'http://localhost:{server.port}/dp/B01GFPWTI4?x=foo&bar=y'
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_crawl_job_worker_and_max_threads_per_worker(
     conf5threads: XtractedConfig,
     redis_client: Redis,

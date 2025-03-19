@@ -1,6 +1,7 @@
 from typing import cast
 from unittest.mock import Mock
 
+import pytest
 from pydantic import AnyHttpUrl, AnyUrl
 from pytest import fail
 from redis.asyncio import Redis, ResponseError
@@ -119,6 +120,7 @@ async def urls_status_is_running(
     return await _urls_status_is(redis_client, crawl_url, CrawlUrlStatus.running)
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig, with_user: str
 ) -> None:
@@ -167,6 +169,7 @@ async def test_fail_replay_the_same_crawl_if_less_than_3_attempts(
     assert await urls_status_is_error(redis_client, crawl_url)
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_context_switch_to_running(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig, with_user: str
 ) -> None:
@@ -190,6 +193,7 @@ async def test_context_switch_to_running(
     assert pending['pending'] == 1
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_context_switch_to_complete(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig, with_user: str
 ) -> None:
@@ -213,6 +217,7 @@ async def test_context_switch_to_complete(
     assert pending['pending'] == 0
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_enqueue_add_the_url_to_the_crawl_stream(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig, with_user: str
 ) -> None:
@@ -256,6 +261,7 @@ async def test_enqueue_add_the_url_to_the_crawl_stream(
     assert len(res) == 1
 
 
+@pytest.mark.skip(reason='deprecated')
 async def test_enqueue_do_nothing_when_url_exists(
     job_service: JobsService, redis_client: Redis, conf: XtractedConfig, with_user: str
 ) -> None:

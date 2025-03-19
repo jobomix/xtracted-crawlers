@@ -15,7 +15,7 @@ class Extractorfactory:
         self.crawl_syncer = crawl_syncer
 
     def new_instance(
-        self, message_id: str, mapping: dict[str, Any]
+        self, message_id: str | int, mapping: dict[str, Any]
     ) -> Optional[Extractor]:
         url = AnyUrl(mapping['url'])
         if url.path:

@@ -36,6 +36,7 @@ class PGCrawlJobWorker:
         storage = DBStorage(config)
         self.config = config
         self.tasks = set[asyncio.Task]()
+        self.crawling_tasks = set[asyncio.Task]()
         self.extractor_factory = Extractorfactory(storage, crawl_syncer)
 
     def run(self) -> None:
@@ -51,15 +52,36 @@ class PGCrawlJobWorker:
         # await asyncio.gather(*self.tasks)
 
     async def cancel(self) -> None:
+        for task in self.crawling_tasks.copy():
+            if task.cancel():
+                try:
+                    await task
+                    self.crawling_tasks.discard(task)
+                except asyncio.CancelledError:
+                    pass
+
         for task in self.tasks:
             if task.cancel():
                 try:
                     await task
+                    self.tasks.discard(task)
                 except asyncio.CancelledError:
                     pass
 
     async def _log_job_error(self, error: Exception, db_client: Connection) -> None:
         print(error)
+
+    def crawl(self, message: Message) -> None:
+        logger.info(f'stream message received -> {message.message}')
+        extractor = self.extractor_factory.new_instance(
+            message_id=message.msg_id, mapping=message.message
+        )
+
+        if extractor:
+            print(f'creating crawl task for url: {message.message["url"]}')
+            crawl_task = asyncio.create_task(extractor.crawl())
+            self.crawling_tasks.add(crawl_task)
+            crawl_task.add_done_callback(self.crawling_tasks.discard)
 
     async def _handle_start_job_event(
         self, message: Message, queue: PGMQueue, db_client: Connection
@@ -78,7 +100,8 @@ class PGCrawlJobWorker:
                         {
                             'event': 'new_url',
                             'job_id': job_id,
-                            'user_uid': user_id,
+                            'user_id': user_id,
+                            'uid': user_id,
                             'url_id': record['url_id'],
                             'url': record['url'],
                         },
@@ -102,6 +125,7 @@ class PGCrawlJobWorker:
     ) -> None:
         try:
             logger.debug(message)
+            self.crawl(message)
         except Exception as e:
             logger.error(e)
             if message.read_ct >= 3:
@@ -137,22 +161,28 @@ class PGCrawlJobWorker:
         db_client = await self.config.new_db_client()
 
         while True:
-            try:
-                messages = await queue.read_with_poll(
-                    'job_urls',
-                    vt=30,
-                    qty=1,
-                    max_poll_seconds=1,
-                    poll_interval_ms=100,
-                    conn=db_client,
-                )
-                if messages:
-                    for msg in messages:
-                        if 'event' in msg.message and msg.message['event'] == 'new_url':
-                            await self._handle_new_url_event(msg, queue, db_client)
+            if len(self.crawling_tasks) >= self.config.max_tasks_per_worker:
+                await asyncio.sleep(0.5)
+            else:
+                try:
+                    messages = await queue.read_with_poll(
+                        'job_urls',
+                        vt=self.config.crawl_task_visibility_timeout,
+                        qty=1,
+                        max_poll_seconds=1,
+                        poll_interval_ms=100,
+                        conn=db_client,
+                    )
+                    if messages:
+                        for msg in messages:
+                            if (
+                                'event' in msg.message
+                                and msg.message['event'] == 'new_url'
+                            ):
+                                await self._handle_new_url_event(msg, queue, db_client)
 
-            except asyncio.CancelledError:
-                logger.warning('Check for new url task cancelled')
-                raise
-            finally:
-                await db_client.close()
+                except asyncio.CancelledError:
+                    logger.warning('Check for new url task cancelled')
+                    raise
+                finally:
+                    await db_client.close()
