@@ -43,5 +43,4 @@ def project_root_path(request: Any) -> str:
 
 @pytest.fixture(scope='session')
 def docker_compose_file(project_root_path: str) -> str:
-    print(project_root_path)
     return f'{project_root_path}/../xtracted-tests/xtracted_tests/docker-compose.yml'

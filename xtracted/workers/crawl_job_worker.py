@@ -59,7 +59,7 @@ class CrawlJobWorker:
                 logger.info('crawler group "crawlers" created.')
 
     def crawl(self, res: Any) -> None:
-        logger.info('stream message received')
+        logger.debug('stream message received')
         crawl_msgs = res[0][1]
         for message_id, mapping in crawl_msgs:
             extractor = self.extractor_factory.new_instance(
@@ -67,7 +67,7 @@ class CrawlJobWorker:
             )
 
             if extractor:
-                print(f'createing crawl task for url: {mapping["url"]}')
+                logger.debug(f'createing crawl task for url: {mapping["url"]}')
                 crawl_task = asyncio.create_task(extractor.crawl())
                 self.crawling_tasks.add(crawl_task)
                 crawl_task.add_done_callback(self.crawling_tasks.discard)

@@ -114,3 +114,46 @@ async def test_crawl_job_worker_crawls_url(
 
     await wait_for_condition(cond)
     await worker.cancel()
+
+
+async def test_crawler_should_report_error_and_discard_after_3_attempts(
+    conf: XtractedConfig,
+    pg_client: Connection,
+    with_user_token: str,
+    with_user: str,
+    aiohttp_server: Any,
+) -> None:
+    server = await aiohttp_server(new_web_app())
+
+    conf.crawl_task_visibility_timeout = 6
+
+    async def cond() -> Any:
+        job_url = await pg_client.fetchrow(
+            """select * from job_urls where job_id = $1 and user_id = $2 """,
+            crawl_job.job_id,
+            with_user,
+        )
+        assert job_url is not None
+        assert job_url['errors'] is not None
+        errors = job_url['errors']
+        assert len(errors) == 3
+
+        archived_errors = await pg_client.fetchrow("""select * from pgmq.a_job_urls""")
+        assert archived_errors is not None
+
+    urls = [f'http://localhost:{server.port}/dp/NOTFOUND10?x=foo&bar=y']
+
+    job_service = PostgresJobService(config=conf)
+    crawl_job = await create_crawl_job(
+        job_service=job_service, token=with_user_token, urls=urls
+    )
+
+    await job_service.start_job(token=with_user_token, job_id=crawl_job.job_id)
+
+    worker = PGCrawlJobWorker(conf)
+
+    worker.run()
+
+    await wait_for_condition(cond, timeout=30)
+
+    await worker.cancel()

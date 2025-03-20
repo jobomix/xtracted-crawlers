@@ -19,11 +19,13 @@ class CrawlSyncer(ABC):
         pass
 
     @abstractmethod
-    async def ack(self, message_id: str | int) -> None:
+    async def ack(self, msg_id: str | int) -> None:
         pass
 
     @abstractmethod
-    async def report_error(self, crawl_url: XtractedUrl, error: Exception) -> None:
+    async def report_error(
+        self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+    ) -> None:
         pass
 
     @abstractmethod
@@ -63,26 +65,31 @@ class PostgresCrawlSyncer(CrawlSyncer):
     def __init__(self, config: XtractedConfig):
         self.config = config
 
-    async def ack(self, message_id: str | int) -> None:
+    async def ack(self, msg_id: str | int) -> None:
         queue = await self.config.new_pgmq_client()
         conn = await self.config.new_db_client()
         try:
-            await queue.archive('job_urls', msg_id=message_id, conn=conn)
+            await queue.archive('job_urls', msg_id=msg_id, conn=conn)
         except Exception as e:
             logger.error(e)
         finally:
             await conn.close()
 
-    async def report_error(self, crawl_url: XtractedUrl, error: Exception) -> None:
+    async def report_error(
+        self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+    ) -> None:
         conn = await self.config.new_db_client()
+        queue = await self.config.new_pgmq_client()
         try:
             await conn.execute(
-                """update job_urls set errors = errors || $1 where user_id = $2 and job_id = $3 and url_id = $4 """, 
+                """update job_urls set errors = errors || $1, retries = retries + 1 where user_id = $2 and job_id = $3 and url_id = $4 """,
                 [repr(error)],
                 crawl_url.uid,
                 crawl_url.job_id,
-                crawl_url._url_id
+                crawl_url._url_id,
             )
+            if crawl_url.retries >= 3:
+                await queue.archive('job_urls', msg_id=msg_id, conn=conn)
         except Exception as e:
             logger.error(e)
         finally:
@@ -103,9 +110,6 @@ class PostgresCrawlSyncer(CrawlSyncer):
             logger.error(e)
         finally:
             await conn.close()
-
-    async def replay(self, crawl_url: XtractedUrl) -> None:
-        pass
 
     async def complete(
         self, crawl_url: XtractedUrl, msg_id: int | str, data: dict[str, Any]
@@ -174,8 +178,8 @@ class RedisCrawlSyncer(CrawlSyncer):
     def __init__(self, *, redis: Redis | RedisCluster) -> None:
         self.redis = redis
 
-    async def ack(self, message_id: str | int) -> None:
-        await self.redis.xack('crawl', 'crawlers', message_id)
+    async def ack(self, msg_id: str | int) -> None:
+        await self.redis.xack('crawl', 'crawlers', msg_id)
 
     async def sync(self, crawl_url: XtractedUrl) -> None:
         pipeline = self.redis.pipeline()
@@ -195,7 +199,9 @@ class RedisCrawlSyncer(CrawlSyncer):
         await pipeline.execute()
         return None
 
-    async def report_error(self, crawl_url: XtractedUrl, error: Exception) -> None:
+    async def report_error(
+        self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+    ) -> None:
         pass
 
     async def replay(self, crawl_url: XtractedUrl) -> None:
@@ -257,7 +263,7 @@ class DefaultCrawlContext(CrawlContext):
         return None
 
     async def fail(self, error: Exception) -> None:
-        await self._crawl_syncer.report_error(self._crawl_url, error)
+        await self._crawl_syncer.report_error(self._crawl_url, self._message_id, error)
 
     async def set_running(self) -> None:
         self._crawl_url.status = CrawlUrlStatus.running

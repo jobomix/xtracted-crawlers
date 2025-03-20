@@ -69,16 +69,19 @@ class PGCrawlJobWorker:
                     pass
 
     async def _log_job_error(self, error: Exception, db_client: Connection) -> None:
-        print(error)
+        logger.error(error)
 
     def crawl(self, message: Message) -> None:
         logger.info(f'stream message received -> {message.message}')
+
+        mapping = message.message
+        mapping['retries'] = message.read_ct
         extractor = self.extractor_factory.new_instance(
             message_id=message.msg_id, mapping=message.message
         )
 
         if extractor:
-            print(f'creating crawl task for url: {message.message["url"]}')
+            logger.debug(f'creating crawl task for url: {message.message["url"]}')
             crawl_task = asyncio.create_task(extractor.crawl())
             self.crawling_tasks.add(crawl_task)
             crawl_task.add_done_callback(self.crawling_tasks.discard)
@@ -158,21 +161,27 @@ class PGCrawlJobWorker:
 
     async def check_for_new_job_urls(self) -> None:
         queue = await self.config.new_pgmq_client()
-        db_client = await self.config.new_db_client()
+
+        logger.info(f'visibility timeout {self.config.crawl_task_visibility_timeout}')
 
         while True:
             if len(self.crawling_tasks) >= self.config.max_tasks_per_worker:
                 await asyncio.sleep(0.5)
+                logger.debug(
+                    f'Number of crawling tasks: {len(self.crawling_tasks)} -> sleeping ..'
+                )
             else:
+                db_client = await self.config.new_db_client()
                 try:
                     messages = await queue.read_with_poll(
                         'job_urls',
-                        vt=self.config.crawl_task_visibility_timeout,
+                        vt=6,
                         qty=1,
-                        max_poll_seconds=1,
-                        poll_interval_ms=100,
+                        max_poll_seconds=2,
+                        poll_interval_ms=300,
                         conn=db_client,
                     )
+                    logger.debug(f'polling: received {len(messages)} messages')
                     if messages:
                         for msg in messages:
                             if (

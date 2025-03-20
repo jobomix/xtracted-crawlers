@@ -1,4 +1,3 @@
-import asyncio
 import json
 from typing import Any
 
@@ -197,10 +196,10 @@ async def test_syncer_should_report_errors(
             crawl_job.job_id,
             with_user,
         )
-        print(job_url)
         assert job_url is not None
         assert job_url['errors'] is not None
-        assert job_url['errors'] == [repr(ValueError('KABOOM!')),repr(ValueError('KABOOM2!')),repr(ValueError('KABOOM3!'))] 
+        assert job_url['errors'] == [repr(ValueError('KABOOM!'))]
+        assert job_url['retries'] == 1
 
     syncer = PostgresCrawlSyncer(conf)
     job_service = PostgresJobService(config=conf)
@@ -216,9 +215,83 @@ async def test_syncer_should_report_errors(
 
     assert existing_url is not None
 
-    await syncer.report_error(existing_url, ValueError('KABOOM!'))
-    await syncer.report_error(existing_url, ValueError('KABOOM2!'))
-    await syncer.report_error(existing_url, ValueError('KABOOM3!'))
+    msg_id = await pgmq_client.send(
+        'job_urls',
+        {
+            'event': 'new_url',
+            'job_id': crawl_job.job_id,
+            'user_id': with_user,
+            'uid': with_user,
+            'url_id': existing_url._url_id,
+            'url': str(existing_url.url),
+        },
+        conn=pg_client,
+    )
+
+    assert existing_url is not None
+
+    await syncer.report_error(existing_url, msg_id, ValueError('KABOOM!'))
+
+    await wait_for_condition(cond)
+
+
+async def test_syncer_should_discard_message_when_3_consecutive_failures(
+    conf: XtractedConfig,
+    pgmq_client: PGMQueue,
+    pg_client: Connection,
+    with_user: str,
+    with_user_token: str,
+) -> None:
+    async def cond() -> Any:
+        job_url = await pg_client.fetchrow(
+            """select * from job_urls where job_id = $1 and user_id = $2""",
+            crawl_job.job_id,
+            with_user,
+        )
+        assert job_url is not None
+        assert job_url['errors'] is not None
+        assert len(job_url['errors']) == 3
+
+        archived_message = await pg_client.fetchrow(
+            """select * from pgmq.a_job_urls where msg_id = $1""", msg_id
+        )
+        assert archived_message is not None
+
+    syncer = PostgresCrawlSyncer(conf)
+    job_service = PostgresJobService(config=conf)
+    crawl_job = await create_crawl_job(
+        job_service=job_service, token=with_user_token, urls=urls
+    )
+
+    existing_url = UrlFactory.new_url(
+        url='https://www.amazon.co.uk/dp/B0931VRJT5',
+        uid=with_user,
+        job_id=crawl_job.job_id,
+    )
+
+    assert existing_url is not None
+
+    msg_id = await pgmq_client.send(
+        'job_urls',
+        {
+            'event': 'new_url',
+            'job_id': crawl_job.job_id,
+            'user_id': with_user,
+            'uid': with_user,
+            'url_id': existing_url._url_id,
+            'url': str(existing_url.url),
+        },
+        conn=pg_client,
+    )
+
+    existing_url.retries = 1
+    await syncer.report_error(existing_url, msg_id, ValueError('KABOOM!'))
+
+    existing_url.retries = 2
+    await syncer.report_error(existing_url, msg_id, ValueError('KABOOM2!'))
+
+    existing_url.retries = 3
+    await syncer.report_error(existing_url, msg_id, ValueError('KABOOM3!'))
 
     await wait_for_condition(cond)
 

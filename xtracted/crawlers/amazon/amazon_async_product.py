@@ -95,12 +95,17 @@ class AmazonAsyncProduct(Extractor):
         return extracted
 
     async def run(self, playwright: Playwright) -> None:
-        chromium = playwright.chromium
-        browser = await chromium.launch(headless=True)
-        page = await browser.new_page()
-        extracted = await self.extract(page)
-        await browser.close()
-        await self.crawl_context.complete(extracted)
+        try:
+            chromium = playwright.chromium
+            browser = await chromium.launch(headless=True)
+            page = await browser.new_page()
+            extracted = await self.extract(page)
+            await self.crawl_context.complete(extracted)
+        except Exception as e:
+            logger.error('Error occurred')
+            await self.crawl_context.fail(e)
+        finally:
+            await browser.close()
 
     async def crawl(self) -> None:
         try:
@@ -108,8 +113,7 @@ class AmazonAsyncProduct(Extractor):
             async with async_playwright() as playwright:
                 await self.run(playwright)
         except Exception as e:
-            print('Error occurred', e)
-            await self.crawl_context.fail(e)
+            logger.error('Error occurred', e)
 
 
 if __name__ == '__main__':
@@ -121,7 +125,9 @@ if __name__ == '__main__':
         async def sync(self, crawl_url: XtractedUrl) -> None:
             pass
 
-        async def report_error(self, crawl_url: XtractedUrl, error: Exception) -> None:
+        async def report_error(
+            self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+        ) -> None:
             pass
 
         async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
