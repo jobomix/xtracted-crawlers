@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 from pydantic import AnyHttpUrl
-from redis.asyncio import RedisCluster
-from redis.asyncio.client import Redis
 from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import CrawlUrlStatus, UrlFactory, XtractedUrl
 from xtracted_common.storage import Storage
@@ -172,68 +170,6 @@ class PostgresCrawlSyncer(CrawlSyncer):
             return False
         finally:
             await conn.close()
-
-
-class RedisCrawlSyncer(CrawlSyncer):
-    def __init__(self, *, redis: Redis | RedisCluster) -> None:
-        self.redis = redis
-
-    async def ack(self, msg_id: str | int) -> None:
-        await self.redis.xack('crawl', 'crawlers', msg_id)
-
-    async def sync(self, crawl_url: XtractedUrl) -> None:
-        pipeline = self.redis.pipeline()
-        for status in CrawlUrlStatus:
-            pipeline.srem(
-                f'u:{crawl_url.uid}:job:{crawl_url.job_id}:urls:{status.name}',
-                crawl_url._url_id,
-            )
-            pipeline.sadd(
-                f'u:{crawl_url.uid}:job:{crawl_url.job_id}:urls:{crawl_url.status.name}',
-                crawl_url._url_id,
-            )
-        pipeline.hset(
-            crawl_url._url_key,
-            mapping=crawl_url.model_dump(mode='json'),
-        )
-        await pipeline.execute()
-        return None
-
-    async def report_error(
-        self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
-    ) -> None:
-        pass
-
-    async def replay(self, crawl_url: XtractedUrl) -> None:
-        await self.redis.xadd(name='crawl', fields=crawl_url.model_dump(mode='json'))  # type: ignore
-
-    async def complete(
-        self, crawl_url: XtractedUrl, msg_id: int | str, data: dict[str, Any]
-    ) -> None:
-        return None
-
-    async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
-        exist = await self.redis.hget(name=to_enqueue._url_key, key='url')  # type: ignore
-
-        if not exist:
-            pipeline = self.redis.pipeline()
-            pipeline.sadd(
-                f'u:{to_enqueue.uid}:job:{to_enqueue.job_id}:urls',
-                to_enqueue._url_id,
-            )
-            pipeline.sadd(
-                f'u:{to_enqueue.uid}:job:{to_enqueue.job_id}:urls:{to_enqueue.status.name}',
-                to_enqueue._url_id,
-            )
-            url_mapping = to_enqueue.model_dump(mode='json')
-            pipeline.hset(
-                name=to_enqueue._url_key,
-                mapping=url_mapping,
-            )
-            pipeline.xadd(name='crawl', fields=url_mapping)  # type: ignore
-            await pipeline.execute()
-            return True
-        return False
 
 
 class DefaultCrawlContext(CrawlContext):
