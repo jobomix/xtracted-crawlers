@@ -6,7 +6,6 @@ from typing import Any, Optional
 from pydantic import AnyHttpUrl
 from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import CrawlUrlStatus, UrlFactory, XtractedUrl
-from xtracted_common.storage import Storage
 
 logger = logging.getLogger('crawljob-syncer')
 
@@ -176,12 +175,10 @@ class DefaultCrawlContext(CrawlContext):
     def __init__(
         self,
         *,
-        storage: Storage,
         crawl_syncer: CrawlSyncer,
         crawl_url: XtractedUrl,
         message_id: str | int,
     ) -> None:
-        self._storage = storage
         self._crawl_syncer = crawl_syncer
         self._crawl_url = crawl_url
         self._message_id = message_id

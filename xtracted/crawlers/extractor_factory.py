@@ -2,7 +2,6 @@ from typing import Any, Optional
 
 from pydantic import AnyUrl
 from xtracted_common.model import AmazonProductUrl
-from xtracted_common.storage import Storage
 
 from xtracted.context import CrawlSyncer, DefaultCrawlContext
 from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
@@ -10,8 +9,7 @@ from xtracted.model import Extractor
 
 
 class Extractorfactory:
-    def __init__(self, storage: Storage, crawl_syncer: CrawlSyncer):
-        self.storage = storage
+    def __init__(self, crawl_syncer: CrawlSyncer):
         self.crawl_syncer = crawl_syncer
 
     def new_instance(
@@ -25,7 +23,6 @@ class Extractorfactory:
                         message_id=message_id,
                         crawl_url=AmazonProductUrl(**mapping),
                         crawl_syncer=self.crawl_syncer,
-                        storage=self.storage,
                     )
                 )
         return None

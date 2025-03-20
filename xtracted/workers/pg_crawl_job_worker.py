@@ -21,7 +21,6 @@ from asyncpg import Connection
 from tembo_pgmq_python.async_queue import PGMQueue
 from tembo_pgmq_python.messages import Message
 from xtracted_common.configuration import XtractedConfig
-from xtracted_common.storage import DBStorage
 
 from xtracted.context import PostgresCrawlSyncer
 from xtracted.crawlers.extractor_factory import Extractorfactory
@@ -33,11 +32,10 @@ logger = logging.getLogger('crawljob-worker')
 class PGCrawlJobWorker:
     def __init__(self, config: XtractedConfig) -> None:
         crawl_syncer = PostgresCrawlSyncer(config)
-        storage = DBStorage(config)
         self.config = config
         self.tasks = set[asyncio.Task]()
         self.crawling_tasks = set[asyncio.Task]()
-        self.extractor_factory = Extractorfactory(storage, crawl_syncer)
+        self.extractor_factory = Extractorfactory(crawl_syncer)
 
     def run(self) -> None:
         """Starts the worker"""
