@@ -5,7 +5,7 @@ from xtracted_common.model import AmazonProductUrl
 
 from xtracted.context import CrawlSyncer, DefaultCrawlContext
 from xtracted.crawlers.amazon.amazon_async_product import AmazonAsyncProduct
-from xtracted.model import Extractor
+from xtracted.model import CrawlerUrl, Extractor
 
 
 class Extractorfactory:
@@ -21,7 +21,7 @@ class Extractorfactory:
                 return AmazonAsyncProduct(
                     crawl_context=DefaultCrawlContext(
                         message_id=message_id,
-                        crawl_url=AmazonProductUrl(**mapping),
+                        crawler_url=CrawlerUrl(**mapping),
                         crawl_syncer=self.crawl_syncer,
                     )
                 )

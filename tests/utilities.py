@@ -1,13 +1,13 @@
 import asyncio
 from typing import Any, Callable, Coroutine
 
-from xtracted_common.model import CrawlJobInput, CrawlJobInternal
+from xtracted_common.model import CrawlJob, CrawlJobInput
 from xtracted_common.services.jobs_service import JobsService
 
 
 async def create_crawl_job(
     job_service: JobsService, token: str, urls: list[str]
-) -> CrawlJobInternal:
+) -> CrawlJob:
     return await job_service.submit_job(
         token,
         CrawlJobInput(urls=urls),

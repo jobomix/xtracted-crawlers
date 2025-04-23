@@ -1,11 +1,11 @@
 import asyncio
 import pathlib
+import re
 
 from aiohttp import web
-from xtracted_common.model import amazon_url_asin_path
 
-filepath = pathlib.Path(__file__).resolve().parent.parent
-
+filepath = pathlib.Path(__file__).parent.parent
+asin_path = re.compile(r'.*/dp/((B0|BT)([A-Z0-9]{8})).*')
 routes = web.RouteTableDef()
 
 
@@ -22,7 +22,7 @@ async def html_response(path: pathlib.Path) -> web.Response:
 @routes.get('/{name:.*}')
 async def handle(request: web.Request) -> web.Response:
     name = request.match_info.get('name', 'gopro.html')
-    if amazon_url_asin_path.match(f'/{name}'):
+    if asin_path.match(f'/{name}'):
         splits = name.split('/')
         return await html_response(filepath / 'asins' / f'{splits[-1]}.html')
     else:

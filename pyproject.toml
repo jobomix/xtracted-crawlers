@@ -30,6 +30,7 @@ poethepoet = "^0.29.0"
 pytest-aiohttp = "^1.0.5"
 # xtracted-tests = { path = "../xtracted-tests/",  develop=true }
 xtracted-tests = { git="git@github.com:jobomix/xtracted-tests.git" }
+pytest-env = "^1.1.5"
 
 [build-system]
 requires = ["poetry-core"]
@@ -44,6 +45,9 @@ asyncio_mode = "auto"
 log_cli_level = "WARNING"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+env = [
+    "RUN_ENV=test"
+]
 
 [tool.poe.tasks]
 crawl_job_worker = "python -m xtracted.workers.crawl_job_worker"

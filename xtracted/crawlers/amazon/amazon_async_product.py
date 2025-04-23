@@ -2,15 +2,13 @@ import asyncio
 import logging
 from typing import Any, Optional
 from urllib.parse import urlparse
+from uuid import UUID
 
 from playwright.async_api import Page, Playwright, async_playwright
-from xtracted_common.model import (
-    AmazonProductUrl,
-    XtractedUrl,
-)
+from pydantic import HttpUrl
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
-from xtracted.model import Extractor
+from xtracted.model import CrawlerUrl, Extractor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 logger = logging.getLogger('amazon-async-crawler')
@@ -80,7 +78,7 @@ class AmazonAsyncProduct(Extractor):
             return {}
 
     async def extract(self, page: Page) -> dict[str, Any]:
-        crawl_url = self.crawl_context.get_crawl_url()
+        crawl_url = self.crawl_context.get_crawler_url()
         await page.goto(str(crawl_url.url))
         asin = await self.extract_asin(page)
         feature_bullets = await self.extract_feature_bullets(page)
@@ -88,7 +86,7 @@ class AmazonAsyncProduct(Extractor):
         extracted = {}
         extracted['asin'] = asin
         extracted['feature_bullets'] = feature_bullets
-        extracted['url'] = str(self.crawl_context.get_crawl_url().url)
+        extracted['url'] = str(self.crawl_context.get_crawler_url().url)
         extracted['variants'] = variants
         return extracted
 
@@ -120,28 +118,32 @@ if __name__ == '__main__':
         async def ack(self, message_id: str | int) -> None:
             pass
 
-        async def sync(self, crawl_url: XtractedUrl) -> None:
+        async def sync(self, crawl_url: CrawlerUrl) -> None:
             pass
 
         async def report_error(
-            self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+            self, crawl_url: CrawlerUrl, msg_id: str | int, error: Exception
         ) -> None:
             pass
 
-        async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
-            return True
+        async def enqueue(
+            self, user_id: UUID, job_id: int, url: HttpUrl
+        ) -> Optional[CrawlerUrl]:
+            return None
 
         async def complete(
-            self, crawl_url: XtractedUrl, msg_id: int | str, data: dict[str, Any]
+            self, crawl_url: CrawlerUrl, msg_id: int | str, data: dict[str, Any]
         ) -> None:
             return None
 
     aap = AmazonAsyncProduct(
         crawl_context=DefaultCrawlContext(
             crawl_syncer=DummyCrawlSyncer(),
-            crawl_url=AmazonProductUrl(
-                uid='dummy-uid',
+            crawler_url=CrawlerUrl(
+                user_id='dummy-uid',
                 job_id='123456',
+                url_id='B012345678',
+                url_type='amazon_product',
                 url='file:///home/nono/projects/xtracted/crawlers-python/tests/en_GB/gopro.html',
             ),
             message_id='some-msg-id',

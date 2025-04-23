@@ -2,17 +2,21 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional
+from uuid import UUID
 
-from pydantic import AnyHttpUrl
+from pydantic import HttpUrl
 from xtracted_common.configuration import XtractedConfig
-from xtracted_common.model import CrawlUrlStatus, UrlFactory, XtractedUrl
+from xtracted_common.model import CrawlJobUrlStatus
+
+from xtracted.model import CrawlerUrl
+from xtracted.services.crawlers_services import PostgresCrawlersService
 
 logger = logging.getLogger('crawljob-syncer')
 
 
 class CrawlSyncer(ABC):
     @abstractmethod
-    async def sync(self, crawl_url: XtractedUrl) -> None:
+    async def sync(self, crawler_url: CrawlerUrl) -> None:
         pass
 
     @abstractmethod
@@ -21,28 +25,30 @@ class CrawlSyncer(ABC):
 
     @abstractmethod
     async def report_error(
-        self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+        self, crawler_url: CrawlerUrl, msg_id: str | int, error: Exception
     ) -> None:
         pass
 
     @abstractmethod
-    async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
+    async def enqueue(
+        self, user_id: UUID, job_id: int, url: HttpUrl
+    ) -> Optional[CrawlerUrl]:
         pass
 
     @abstractmethod
     async def complete(
-        self, crawl_url: XtractedUrl, msg_id: int | str, data: dict[str, Any]
+        self, crawler_url: CrawlerUrl, msg_id: int | str, data: dict[str, Any]
     ) -> None:
         pass
 
 
 class CrawlContext(ABC):
     @abstractmethod
-    def get_crawl_url(self) -> XtractedUrl:
+    def get_crawler_url(self) -> CrawlerUrl:
         pass
 
     @abstractmethod
-    async def enqueue(self, url: AnyHttpUrl) -> Optional[XtractedUrl]:
+    async def enqueue(self, url: HttpUrl) -> Optional[CrawlerUrl]:
         pass
 
     @abstractmethod
@@ -61,6 +67,7 @@ class CrawlContext(ABC):
 class PostgresCrawlSyncer(CrawlSyncer):
     def __init__(self, config: XtractedConfig):
         self.config = config
+        self.crawlers_service = PostgresCrawlersService(config)
 
     async def ack(self, msg_id: str | int) -> None:
         queue = await self.config.new_pgmq_client()
@@ -73,35 +80,36 @@ class PostgresCrawlSyncer(CrawlSyncer):
             await conn.close()
 
     async def report_error(
-        self, crawl_url: XtractedUrl, msg_id: str | int, error: Exception
+        self, crawler_url: CrawlerUrl, msg_id: str | int, error: Exception
     ) -> None:
         conn = await self.config.new_db_client()
         queue = await self.config.new_pgmq_client()
+
         try:
-            await conn.execute(
-                """update job_urls set errors = errors || $1, retries = retries + 1 where user_id = $2 and job_id = $3 and url_id = $4 """,
+            retries = await conn.fetchval(
+                """update job_urls set errors = errors || $1, retries = retries + 1 where user_id = $2 and job_id = $3 and url_id = $4 returning retries""",
                 [repr(error)],
-                crawl_url.uid,
-                crawl_url.job_id,
-                crawl_url._url_id,
+                crawler_url.user_id,
+                crawler_url.job_id,
+                crawler_url.url_id,
             )
-            if crawl_url.retries >= 3:
+            if retries >= 3:
                 await queue.archive('job_urls', msg_id=msg_id, conn=conn)
         except Exception as e:
             logger.error(e)
         finally:
             await conn.close()
 
-    async def sync(self, crawl_url: XtractedUrl) -> None:
+    async def sync(self, crawler_url: CrawlerUrl) -> None:
         conn = await self.config.new_db_client()
         try:
-            logger.info(crawl_url)
+            logger.info(crawler_url)
             await conn.execute(
                 """update job_urls set status = $1 where job_id = $2 and user_id = $3 and url_id = $4""",
-                crawl_url.status,
-                crawl_url.job_id,
-                crawl_url.uid,
-                crawl_url._url_id,
+                crawler_url.status,
+                crawler_url.job_id,
+                crawler_url.user_id,
+                crawler_url.url_id,
             )
         except Exception as e:
             logger.error(e)
@@ -109,7 +117,7 @@ class PostgresCrawlSyncer(CrawlSyncer):
             await conn.close()
 
     async def complete(
-        self, crawl_url: XtractedUrl, msg_id: int | str, data: dict[str, Any]
+        self, crawler_url: CrawlerUrl, msg_id: int | str, data: dict[str, Any]
     ) -> None:
         conn = await self.config.new_db_client()
         queue = await self.config.new_pgmq_client()
@@ -117,11 +125,11 @@ class PostgresCrawlSyncer(CrawlSyncer):
             async with conn.transaction():
                 await conn.execute(
                     'update job_urls set status = $1, data = $2 where job_id = $3 and user_id = $4 and url_id = $5',
-                    crawl_url.status,
+                    crawler_url.status,
                     json.dumps(data),
-                    crawl_url.job_id,
-                    crawl_url.uid,
-                    crawl_url._url_id,
+                    crawler_url.job_id,
+                    crawler_url.user_id,
+                    crawler_url.url_id,
                 )  # update urls
                 await queue.archive('job_urls', msg_id=msg_id, conn=conn)
 
@@ -130,45 +138,12 @@ class PostgresCrawlSyncer(CrawlSyncer):
         finally:
             await conn.close()
 
-    async def enqueue(self, to_enqueue: XtractedUrl) -> bool:
-        conn = await self.config.new_db_client()
-        try:
-            exist = await conn.fetchrow(
-                """select * from job_urls where user_id = $1 and job_id = $2 and url_id = $3""",
-                to_enqueue.uid,
-                to_enqueue.job_id,
-                to_enqueue._url_id,
-            )
-            if exist:
-                return False
-            queue = await self.config.new_pgmq_client()
-            async with conn.transaction():
-                await conn.execute(
-                    """insert into job_urls(user_id,job_id,url,url_id) values($1,$2,$3,$4)""",
-                    to_enqueue.uid,
-                    to_enqueue.job_id,
-                    str(to_enqueue.url),
-                    to_enqueue._url_id,
-                )
-
-                await queue.send(
-                    'job_urls',
-                    {
-                        'event': 'new_url',
-                        'job_id': to_enqueue.job_id,
-                        'user_id': to_enqueue.uid,
-                        'url_id': to_enqueue._url_id,
-                        'url': str(to_enqueue.url),
-                    },
-                    conn=conn,
-                )
-
-            return True
-        except Exception as e:
-            logger.error(e)
-            return False
-        finally:
-            await conn.close()
+    async def enqueue(
+        self, user_id: UUID, job_id: int, url: HttpUrl
+    ) -> Optional[CrawlerUrl]:
+        return await self.crawlers_service.add_crawler_url(
+            user_id=user_id, job_id=job_id, url=url
+        )
 
 
 class DefaultCrawlContext(CrawlContext):
@@ -176,32 +151,32 @@ class DefaultCrawlContext(CrawlContext):
         self,
         *,
         crawl_syncer: CrawlSyncer,
-        crawl_url: XtractedUrl,
+        crawler_url: CrawlerUrl,
         message_id: str | int,
     ) -> None:
         self._crawl_syncer = crawl_syncer
-        self._crawl_url = crawl_url
+        self._crawler_url = crawler_url
         self._message_id = message_id
 
-    def get_crawl_url(self) -> XtractedUrl:
-        return self._crawl_url
+    def get_crawler_url(self) -> CrawlerUrl:
+        return self._crawler_url
 
-    async def enqueue(self, url: AnyHttpUrl) -> Optional[XtractedUrl]:
-        to_enqueue = UrlFactory.new_url(
-            job_id=self._crawl_url.job_id, url=url, uid=self._crawl_url.uid
+    async def enqueue(self, url: HttpUrl) -> Optional[CrawlerUrl]:
+        return await self._crawl_syncer.enqueue(
+            user_id=self._crawler_url.user_id,
+            job_id=self._crawler_url.job_id,
+            url=url,
         )
-        if to_enqueue:
-            if await self._crawl_syncer.enqueue(to_enqueue):
-                return to_enqueue
-        return None
 
     async def fail(self, error: Exception) -> None:
-        await self._crawl_syncer.report_error(self._crawl_url, self._message_id, error)
+        await self._crawl_syncer.report_error(
+            self._crawler_url, self._message_id, error
+        )
 
     async def set_running(self) -> None:
-        self._crawl_url.status = CrawlUrlStatus.running
-        await self._crawl_syncer.sync(self._crawl_url)
+        self._crawler_url.status = CrawlJobUrlStatus.running
+        await self._crawl_syncer.sync(self._crawler_url)
 
     async def complete(self, data: dict[str, Any]) -> None:
-        self._crawl_url.status = CrawlUrlStatus.complete
-        await self._crawl_syncer.complete(self._crawl_url, self._message_id, data)
+        self._crawler_url.status = CrawlJobUrlStatus.complete
+        await self._crawl_syncer.complete(self._crawler_url, self._message_id, data)

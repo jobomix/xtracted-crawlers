@@ -141,7 +141,7 @@ async def test_crawler_should_report_error_and_discard_after_3_attempts(
         archived_errors = await pg_client.fetchrow("""select * from pgmq.a_job_urls""")
         assert archived_errors is not None
 
-    urls = [f'http://localhost:{server.port}/dp/NOTFOUND10?x=foo&bar=y']
+    urls = [f'http://localhost:{server.port}/dp/B0TFOUND10?x=foo&bar=y']
 
     job_service = PostgresJobService(config=conf)
     crawl_job = await create_crawl_job(

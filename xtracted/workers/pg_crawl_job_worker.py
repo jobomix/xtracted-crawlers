@@ -102,9 +102,11 @@ class PGCrawlJobWorker:
                             'event': 'new_url',
                             'job_id': job_id,
                             'user_id': user_id,
-                            'uid': user_id,
+                            'url_type': record['url_type'],
                             'url_id': record['url_id'],
                             'url': record['url'],
+                            'retries': record['retries'],
+                            'job_urls_seq': record['job_urls_seq'],
                         },
                         conn=db_client,
                     )
