@@ -4,7 +4,8 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
-from playwright.async_api import Page, Playwright, async_playwright
+from camoufox.async_api import AsyncCamoufox
+from playwright.async_api import Browser, BrowserContext, Page
 from pydantic import HttpUrl
 
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
@@ -28,7 +29,14 @@ class AmazonAsyncProduct(Extractor):
     async def extract_variants(self, page: Page) -> dict[str, Any]:
         href = await page.evaluate('document.location.href')
         root_url = AmazonAsyncProduct.extract_root_url(href)
-        matrix = await page.evaluate('twisterController.twisterModel.twisterJSInitData')
+
+        matrix = await page.evaluate(
+            'mw:window.twisterController.twisterModel.twisterJSInitData'
+        )
+
+        # scripts = await page.evaluate('document.scripts["100"].textContent')
+        #
+        # logger.error(scripts)
 
         result = {}
         if 'num_total_variations' in matrix:
@@ -73,13 +81,19 @@ class AmazonAsyncProduct(Extractor):
 
     async def extract_variations_matrix(self, page: Page) -> dict[str, Any]:
         try:
-            return await self.extract_variants(page)
-        except Exception:
+            for i in range(2):
+                try:
+                    return await self.extract_variants(page)
+                except Exception:
+                    await asyncio.sleep(1)
+            raise Exception('cannot retrieve variation matrix')
+        except Exception as e:
+            logger.error(e)
             return {}
 
     async def extract(self, page: Page) -> dict[str, Any]:
         crawl_url = self.crawl_context.get_crawler_url()
-        await page.goto(str(crawl_url.url))
+        await page.goto(str(crawl_url.url), wait_until='load')
         asin = await self.extract_asin(page)
         feature_bullets = await self.extract_feature_bullets(page)
         variants = await self.extract_variations_matrix(page)
@@ -90,10 +104,8 @@ class AmazonAsyncProduct(Extractor):
         extracted['variants'] = variants
         return extracted
 
-    async def run(self, playwright: Playwright) -> None:
+    async def run(self, browser: Browser | BrowserContext) -> None:
         try:
-            chromium = playwright.chromium
-            browser = await chromium.launch(headless=True)
             page = await browser.new_page()
             extracted = await self.extract(page)
             await self.crawl_context.complete(extracted)
@@ -106,8 +118,8 @@ class AmazonAsyncProduct(Extractor):
     async def crawl(self) -> None:
         try:
             await self.crawl_context.set_running()
-            async with async_playwright() as playwright:
-                await self.run(playwright)
+            async with AsyncCamoufox(main_world_eval=True) as browser:  # type: ignore
+                await self.run(browser)
         except Exception as e:
             logger.error('Error occurred', e)
 

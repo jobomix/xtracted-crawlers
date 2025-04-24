@@ -97,9 +97,10 @@ async def test_crawl_job_worker_crawls_url(
         assert job_url is not None
         assert job_url['data'] is not None
         data = json.loads(job_url['data'])
-        assert data['asin'] == 'B01GFPWTI4'
+        assert data['asin'] == 'B08897N6HB'
+        assert data['variants'] is not None
 
-    urls = [f'http://localhost:{server.port}/dp/B01GFPWTI4?x=foo&bar=y']
+    urls = [f'http://localhost:{server.port}/dp/B08897N6HB?x=foo&bar=y']
 
     job_service = PostgresJobService(config=conf)
     crawl_job = await create_crawl_job(

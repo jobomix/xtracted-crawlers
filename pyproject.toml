@@ -15,6 +15,7 @@ types-aiofiles = "^24.1.0.20240626"
 aiohttp = "^3.10.10"
 # xtracted-common = { path = "../xtracted-common/" , develop=true }
 xtracted-common = { git="git@github.com:jobomix/xtracted-common.git" }
+camoufox = {extras = ["geoip"], version = "^0.4.11"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"
@@ -71,13 +72,12 @@ python_version = "3.12"
 plugins = ["pydantic.mypy"]
 strict = true
 implicit_reexport = true
-disable_error_code = "type-arg"  # allow generic types without type arguments
+disable_error_code = ["type-arg", "import-untyped"] 
 disallow_untyped_defs = true 
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = [
-    "fastapi.*",
     "asyncpg.*",
     "pydantic.*",
     "auth0.*",

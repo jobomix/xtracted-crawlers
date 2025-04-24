@@ -21,12 +21,13 @@ async def html_response(path: pathlib.Path) -> web.Response:
 
 @routes.get('/{name:.*}')
 async def handle(request: web.Request) -> web.Response:
-    name = request.match_info.get('name', 'gopro.html')
-    if asin_path.match(f'/{name}'):
+    name = request.match_info.get('name')
+    if name and asin_path.match(f'/{name}'):
         splits = name.split('/')
-        return await html_response(filepath / 'asins' / f'{splits[-1]}.html')
-    else:
-        raise web.HTTPNotFound()
+        to_fetch = filepath / 'asins' / f'{splits[-1]}.html'
+        if to_fetch.exists():
+            return await html_response(filepath / 'asins' / f'{splits[-1]}.html')
+    raise web.HTTPNotFound()
 
 
 def new_web_app() -> web.Application:
