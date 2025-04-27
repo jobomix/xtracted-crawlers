@@ -19,6 +19,16 @@ async def html_response(path: pathlib.Path) -> web.Response:
     return await loop.run_in_executor(None, get_amazon_html, path)
 
 
+@routes.get('/artifacts/{name:.*}')
+async def handle_artifacts(request: web.Request) -> web.Response:
+    name = request.match_info.get('name')
+    if name:
+        to_fetch = filepath / 'asins' / name
+        if to_fetch.exists():
+            return await html_response(filepath / 'asins' / name)
+    raise web.HTTPNotFound()
+
+
 @routes.get('/{name:.*}')
 async def handle(request: web.Request) -> web.Response:
     name = request.match_info.get('name')

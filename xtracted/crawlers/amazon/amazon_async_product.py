@@ -11,8 +11,7 @@ from pydantic import HttpUrl
 from xtracted.context import CrawlContext, CrawlSyncer, DefaultCrawlContext
 from xtracted.model import CrawlerUrl, Extractor
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
-logger = logging.getLogger('amazon-async-crawler')
+logger = logging.getLogger('__name__')
 
 
 class AmazonAsyncProduct(Extractor):
@@ -81,12 +80,12 @@ class AmazonAsyncProduct(Extractor):
 
     async def extract_variations_matrix(self, page: Page) -> dict[str, Any]:
         try:
-            for i in range(2):
+            for i in range(10):
                 try:
                     return await self.extract_variants(page)
                 except Exception:
                     await asyncio.sleep(1)
-            raise Exception('cannot retrieve variation matrix')
+            raise ValueError('cannot retrieve variation matrix')
         except Exception as e:
             logger.error(e)
             return {}

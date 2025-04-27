@@ -14,7 +14,7 @@ async def test_extract_data_update_crawl_context(aiohttp_server: Any) -> None:
     ctx = Mock(spec=CrawlContext)
     crawler_url = AmazonProductUrl(
         job_id='124667',
-        url=f'http://localhost:{server.port}/dp/B08897N6HB?x=foo&bar=y',
+        url=f'http://localhost:{server.port}/dp/B0CX9DVZDP?x=foo&bar=y',
         uid='dummy-uid',
     )
     ctx.get_crawler_url.return_value = crawler_url
@@ -22,11 +22,12 @@ async def test_extract_data_update_crawl_context(aiohttp_server: Any) -> None:
     await aap.crawl()
     extracted = ctx.complete.call_args.args[0]
     ctx.complete.assert_called_once()
-    assert extracted['asin'] == 'B08897N6HB'
+    assert extracted['asin'] == 'B0CX9DVZDP'
     assert (
-        extracted['url'] == f'http://localhost:{server.port}/dp/B08897N6HB?x=foo&bar=y'
+        extracted['url'] == f'http://localhost:{server.port}/dp/B0CX9DVZDP?x=foo&bar=y'
     )
-    # print(extracted['variants'])
+    assert extracted['variants'] is not None
+    assert len(extracted['variants']) == 5
 
 
 # async def test_extract_real_data(aiohttp_server: Any) -> None:

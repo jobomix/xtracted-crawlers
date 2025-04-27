@@ -3,8 +3,8 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import HttpUrl
-from xtracted_common.configuration import XtractedConfig
 
+from xtracted.crawler_configuration import CrawlerConfig
 from xtracted.model import CrawlerUrl, CrawlerUrlFactory
 
 
@@ -27,7 +27,7 @@ class CrawlersService(ABC):
 
 
 class PostgresCrawlersService(CrawlersService):
-    def __init__(self, config: XtractedConfig) -> None:
+    def __init__(self, config: CrawlerConfig) -> None:
         self.config = config
 
     async def list_crawler_urls(self, user_id: UUID, job_id: int) -> list[CrawlerUrl]:

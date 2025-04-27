@@ -1,11 +1,11 @@
 from uuid import UUID
 
 from pydantic import HttpUrl
-from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import XtractedUrlType
 from xtracted_common.services.jobs_service import PostgresJobService
 
 from tests.utilities import create_crawl_job
+from xtracted.crawler_configuration import CrawlerConfig
 from xtracted.services.crawlers_services import CrawlersService
 
 urls = [
@@ -17,7 +17,7 @@ urls = [
 async def test_list_crawler_urls(
     crawlers_service: CrawlersService,
     with_uuid: UUID,
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     with_user_token: str,
 ) -> None:
     job_service = PostgresJobService(config=conf)
@@ -39,7 +39,7 @@ async def test_list_crawler_urls(
 async def test_get_crawler_url_returns_something_when_exists(
     crawlers_service: CrawlersService,
     with_uuid: UUID,
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     with_user_token: str,
 ) -> None:
     job_service = PostgresJobService(config=conf)
@@ -62,7 +62,7 @@ async def test_get_crawler_url_returns_something_when_exists(
 async def test_get_crawler_url_returns_nothing_when_not_exists(
     crawlers_service: CrawlersService,
     with_uuid: UUID,
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     with_user_token: str,
 ) -> None:
     job_service = PostgresJobService(config=conf)
@@ -84,7 +84,7 @@ async def test_get_crawler_url_returns_nothing_when_not_exists(
 async def test_add_crawler_url_returns_none_when_url_exists(
     crawlers_service: CrawlersService,
     with_uuid: UUID,
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     with_user_token: str,
 ) -> None:
     job_service = PostgresJobService(config=conf)
@@ -108,7 +108,7 @@ async def test_add_crawler_url_returns_none_when_url_exists(
 async def test_add_crawler_url_returns_url_when_does_not_exsist(
     crawlers_service: CrawlersService,
     with_uuid: UUID,
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     with_user_token: str,
 ) -> None:
     job_service = PostgresJobService(config=conf)

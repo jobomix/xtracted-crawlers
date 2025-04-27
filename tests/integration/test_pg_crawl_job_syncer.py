@@ -5,7 +5,6 @@ from uuid import UUID
 from asyncpg import Connection
 from pydantic import HttpUrl
 from tembo_pgmq_python.async_queue import PGMQueue
-from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import (
     CrawlJobUrlStatus,
 )
@@ -13,6 +12,7 @@ from xtracted_common.services.jobs_service import JobsService, PostgresJobServic
 
 from tests.utilities import create_crawl_job, wait_for_condition
 from xtracted.context import PostgresCrawlSyncer
+from xtracted.crawler_configuration import CrawlerConfig
 from xtracted.model import CrawlerUrl
 from xtracted.services.crawlers_services import CrawlersService
 
@@ -29,7 +29,7 @@ async def list_crawler_urls(
 
 
 async def test_syncer_update_crawler_url(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     crawlers_service: CrawlersService,
     jobs_service: JobsService,
     pg_stack: Any,
@@ -57,7 +57,7 @@ async def test_syncer_update_crawler_url(
 
 
 async def test_syncer_ack_message(
-    conf: XtractedConfig, pgmq_client: PGMQueue, pg_client: Connection
+    conf: CrawlerConfig, pgmq_client: PGMQueue, pg_client: Connection
 ) -> None:
     msg_id = await pgmq_client.send('job_urls', {'hello': 'world'}, conn=pg_client)
     syncer = PostgresCrawlSyncer(conf)
@@ -70,7 +70,7 @@ async def test_syncer_ack_message(
 
 
 async def test_syncer_enqueue_url_does_nothing_when_url_exists(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     pgmq_client: PGMQueue,
     pg_client: Connection,
     with_uuid: UUID,
@@ -90,7 +90,7 @@ async def test_syncer_enqueue_url_does_nothing_when_url_exists(
 
 
 async def test_syncer_enqueue_url_when_url_does_not_exists(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     pgmq_client: PGMQueue,
     pg_client: Connection,
     crawlers_service: CrawlersService,
@@ -117,7 +117,7 @@ async def test_syncer_enqueue_url_when_url_does_not_exists(
 
 
 async def test_syncer_enqueue_url_and_send_event_when_url_does_not_exists(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     pgmq_client: PGMQueue,
     pg_client: Connection,
     crawlers_service: CrawlersService,
@@ -148,7 +148,7 @@ async def test_syncer_enqueue_url_and_send_event_when_url_does_not_exists(
 
 
 async def test_syncer_complete_archive_event(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     pgmq_client: PGMQueue,
     pg_client: Connection,
     with_uuid: UUID,
@@ -189,7 +189,7 @@ async def test_syncer_complete_archive_event(
 
 
 async def test_syncer_should_report_errors(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     pgmq_client: PGMQueue,
     pg_client: Connection,
     with_uuid: UUID,
@@ -239,7 +239,7 @@ async def test_syncer_should_report_errors(
 
 
 async def test_syncer_should_discard_message_when_3_consecutive_failures(
-    conf: XtractedConfig,
+    conf: CrawlerConfig,
     pgmq_client: PGMQueue,
     pg_client: Connection,
     with_uuid: UUID,

@@ -16,6 +16,7 @@ aiohttp = "^3.10.10"
 # xtracted-common = { path = "../xtracted-common/" , develop=true }
 xtracted-common = { git="git@github.com:jobomix/xtracted-common.git" }
 camoufox = {extras = ["geoip"], version = "^0.4.11"}
+colorama = "^0.4.6"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"
@@ -51,8 +52,7 @@ env = [
 ]
 
 [tool.poe.tasks]
-crawl_job_worker = "python -m xtracted.workers.crawl_job_worker"
-local_redis = "docker run --rm --name local-redis -p 6379:6379 redis"
+crawl_job_worker = "python -m xtracted.workers.pg_crawl_job_worker"
 fake_amazon_server = "python -m tests.integration.amazon_server"
 
 [tool.poe.tasks.remove_keys]

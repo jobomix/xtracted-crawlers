@@ -14,23 +14,20 @@
 # ack message JOB_URL received
 
 
-import asyncio
-import logging
-
+import asyncio  # noqa: I001
+from xtracted.xtracted_logging import logging
 from asyncpg import Connection
 from tembo_pgmq_python.async_queue import PGMQueue
 from tembo_pgmq_python.messages import Message
-from xtracted_common.configuration import XtractedConfig
-
 from xtracted.context import PostgresCrawlSyncer
+from xtracted.crawler_configuration import CrawlerConfig, CrawlerConfigFromDotEnv
 from xtracted.crawlers.extractor_factory import Extractorfactory
 
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
-logger = logging.getLogger('crawljob-worker')
+logger = logging.getLogger(__name__)
 
 
 class PGCrawlJobWorker:
-    def __init__(self, config: XtractedConfig) -> None:
+    def __init__(self, config: CrawlerConfig) -> None:
         crawl_syncer = PostgresCrawlSyncer(config)
         self.config = config
         self.tasks = set[asyncio.Task]()
@@ -48,6 +45,11 @@ class PGCrawlJobWorker:
         # task.add_done_callback(self.tasks.discard)
 
         # await asyncio.gather(*self.tasks)
+
+    async def start(self) -> None:
+        self.run()
+        for task in self.tasks:
+            await task
 
     async def cancel(self) -> None:
         for task in self.crawling_tasks.copy():
@@ -70,7 +72,7 @@ class PGCrawlJobWorker:
         logger.error(error)
 
     def crawl(self, message: Message) -> None:
-        logger.info(f'stream message received -> {message.message}')
+        logger.debug(f'stream message received -> {message.message}')
 
         mapping = message.message
         mapping['retries'] = message.read_ct
@@ -91,6 +93,13 @@ class PGCrawlJobWorker:
             async with db_client.transaction():
                 job_id = message.message['job_id']
                 user_id = message.message['user_id']
+                # reset all
+                await db_client.execute(
+                    """update job_urls set data = NULL, created_at = now(), retries = 0, status = 'pending'::public.crawl_url_status where user_id = $1 and job_id=$2""",
+                    user_id,
+                    job_id,
+                )
+
                 async for record in db_client.cursor(
                     'SELECT * from job_urls where job_id = $1 and user_id = $2',
                     job_id,
@@ -142,10 +151,10 @@ class PGCrawlJobWorker:
             try:
                 messages = await queue.read_with_poll(
                     'jobs',
-                    vt=10,
-                    qty=1,
-                    max_poll_seconds=2,
-                    poll_interval_ms=100,
+                    vt=self.config.crawler_job_vt,
+                    qty=self.config.crawler_job_qty,
+                    max_poll_seconds=self.config.crawler_job_max_poll_seconds,
+                    poll_interval_ms=self.config.crawler_job_poll_interval_ms,
                     conn=db_client,
                 )
 
@@ -162,10 +171,8 @@ class PGCrawlJobWorker:
     async def check_for_new_job_urls(self) -> None:
         queue = await self.config.new_pgmq_client()
 
-        logger.info(f'visibility timeout {self.config.crawl_task_visibility_timeout}')
-
         while True:
-            if len(self.crawling_tasks) >= self.config.max_tasks_per_worker:
+            if len(self.crawling_tasks) >= self.config.crawler_max_crawl_tasks:
                 await asyncio.sleep(0.5)
                 logger.debug(
                     f'Number of crawling tasks: {len(self.crawling_tasks)} -> sleeping ..'
@@ -175,10 +182,10 @@ class PGCrawlJobWorker:
                 try:
                     messages = await queue.read_with_poll(
                         'job_urls',
-                        vt=6,
-                        qty=1,
-                        max_poll_seconds=2,
-                        poll_interval_ms=300,
+                        vt=self.config.crawler_url_vt,
+                        qty=self.config.crawler_url_qty,
+                        max_poll_seconds=self.config.crawler_url_max_poll_seconds,
+                        poll_interval_ms=self.config.crawler_url_poll_interval_ms,
                         conn=db_client,
                     )
                     logger.debug(f'polling: received {len(messages)} messages')
@@ -195,3 +202,41 @@ class PGCrawlJobWorker:
                     raise
                 finally:
                     await db_client.close()
+
+
+if __name__ == '__main__':
+    config = CrawlerConfigFromDotEnv()
+    logger.info('************* WORKER CONFIG *************')
+    logger.info(
+        '{:30s} {:10d}'.format(
+            'Max conccurrent crawling tasks', config.crawler_max_crawl_tasks
+        )
+    )
+    logger.info('{:30s} {:10d}'.format('Url visibility timeout', config.crawler_url_vt))
+    logger.info('{:30s} {:10d}'.format('Url messages quantity', config.crawler_url_qty))
+    logger.info(
+        '{:30s} {:10d}'.format(
+            'Url polling in seconds', config.crawler_url_max_poll_seconds
+        )
+    )
+    logger.info(
+        '{:30s} {:10d}'.format(
+            'Url poll interval im ms', config.crawler_url_poll_interval_ms
+        )
+    )
+    logger.info('{:30s} {:10d}'.format('Job visibility timeout', config.crawler_job_vt))
+    logger.info('{:30s} {:10d}'.format('Job messages quantity', config.crawler_job_qty))
+    logger.info(
+        '{:30s} {:10d}'.format(
+            'Job polling in seconds', config.crawler_job_max_poll_seconds
+        )
+    )
+    logger.info(
+        '{:30s} {:10d}'.format(
+            'Job poll interval im ms', config.crawler_job_poll_interval_ms
+        )
+    )
+    logger.info('*****************************************')
+
+    worker = PGCrawlJobWorker(config=config)
+    asyncio.run(worker.start())

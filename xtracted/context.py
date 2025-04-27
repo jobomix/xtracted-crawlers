@@ -5,9 +5,9 @@ from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import HttpUrl
-from xtracted_common.configuration import XtractedConfig
 from xtracted_common.model import CrawlJobUrlStatus
 
+from xtracted.crawler_configuration import CrawlerConfig
 from xtracted.model import CrawlerUrl
 from xtracted.services.crawlers_services import PostgresCrawlersService
 
@@ -65,7 +65,7 @@ class CrawlContext(ABC):
 
 
 class PostgresCrawlSyncer(CrawlSyncer):
-    def __init__(self, config: XtractedConfig):
+    def __init__(self, config: CrawlerConfig):
         self.config = config
         self.crawlers_service = PostgresCrawlersService(config)
 
@@ -103,7 +103,7 @@ class PostgresCrawlSyncer(CrawlSyncer):
     async def sync(self, crawler_url: CrawlerUrl) -> None:
         conn = await self.config.new_db_client()
         try:
-            logger.info(crawler_url)
+            logger.debug(f'syncing {crawler_url.human_repr()}')
             await conn.execute(
                 """update job_urls set status = $1 where job_id = $2 and user_id = $3 and url_id = $4""",
                 crawler_url.status,

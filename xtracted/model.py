@@ -47,6 +47,13 @@ class CrawlerUrl(CrawlJobUrl):
             job_urls_seq=record['job_urls_seq'],
         )
 
+    def human_repr(self) -> str:
+        return f"""crawl url:
+- user_id: {self.user_id}
+- job_id: {self.job_id}
+- url_id: {self.url_id}
+- url_type: {self.url_type}"""
+
 
 class CrawlerUrlFactory:
     @staticmethod
