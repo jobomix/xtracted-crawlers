@@ -119,18 +119,28 @@ class PGCrawlJobWorker:
                         },
                         conn=db_client,
                     )
-                    await db_client.execute(
-                        """update jobs set job_status = $1 where job_id = $2 and user_id = $3""",
-                        'running',
-                        job_id,
-                        user_id,
-                    )
-                    await queue.archive('jobs', msg_id=message.msg_id, conn=db_client)
+
+                # change jobs status to running
+                await db_client.execute(
+                    """update jobs set job_status = $1 where job_id = $2 and user_id = $3""",
+                    'running',
+                    job_id,
+                    user_id,
+                )
+
+                # change runnin_jobs status to running
+                await db_client.execute(
+                    """insert into running_jobs(user_id,job_id,job_status) values($1, $2, 'running') on conflict (user_id, job_id) do update set job_status='running'""",
+                    user_id,
+                    job_id,
+                )
+
+                await queue.archive('jobs', msg_id=message.msg_id, conn=db_client)
         except Exception as e:
             # await self._log_job_error(e, db_client)
             logger.error(e)
             if message.read_ct >= 3:
-                await queue.archive(message)
+                await queue.archive('jobs', msg_id=message.msg_id, conn=db_client)
 
     async def _handle_new_url_event(
         self, message: Message, queue: PGMQueue, db_client: Connection
@@ -141,7 +151,7 @@ class PGCrawlJobWorker:
         except Exception as e:
             logger.error(e)
             if message.read_ct >= 3:
-                await queue.archive(message)
+                await queue.archive('job_urls', msg_id=message.msg_id, conn=db_client)
 
     async def check_for_new_job_task(self) -> None:
         queue = await self.config.new_pgmq_client()
@@ -160,7 +170,8 @@ class PGCrawlJobWorker:
 
                 if messages:
                     for msg in messages:
-                        await self._handle_run_job_event(msg, queue, db_client)
+                        if 'event' in msg.message and msg.message['event'] == 'run_job':
+                            await self._handle_run_job_event(msg, queue, db_client)
 
             except asyncio.CancelledError:
                 logger.warning('Check for new job task cancelled')

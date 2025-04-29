@@ -54,7 +54,7 @@ async def test_run_job_changes_job_status_to_running(
 
     async def cond(status: str) -> Any:
         job = await pg_client.fetchrow(
-            """select * from jobs where job_id = $1 and user_id = $2 """,
+            """select * from jobs where job_id = $1 and user_id = $2""",
             crawl_job.job_id,
             with_user,
         )

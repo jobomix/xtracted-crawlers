@@ -2945,7 +2945,7 @@ types-aiofiles = "^24.1.0.20240626"
 type = "git"
 url = "git@github.com:jobomix/xtracted-common.git"
 reference = "HEAD"
-resolved_reference = "99ae9ddfc6ebeddba155610a4e2893e5ca7af805"
+resolved_reference = "eb26081ec2dc39fd022d17ebfaf89ecabdd75ff1"
 
 [[package]]
 name = "xtracted-tests"
