@@ -86,7 +86,7 @@ class PGCrawlJobWorker:
             self.crawling_tasks.add(crawl_task)
             crawl_task.add_done_callback(self.crawling_tasks.discard)
 
-    async def _handle_start_job_event(
+    async def _handle_run_job_event(
         self, message: Message, queue: PGMQueue, db_client: Connection
     ) -> None:
         try:
@@ -160,7 +160,7 @@ class PGCrawlJobWorker:
 
                 if messages:
                     for msg in messages:
-                        await self._handle_start_job_event(msg, queue, db_client)
+                        await self._handle_run_job_event(msg, queue, db_client)
 
             except asyncio.CancelledError:
                 logger.warning('Check for new job task cancelled')

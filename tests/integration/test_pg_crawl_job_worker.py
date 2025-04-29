@@ -10,7 +10,7 @@ from xtracted.crawler_configuration import CrawlerConfig
 from xtracted.workers.pg_crawl_job_worker import PGCrawlJobWorker
 
 
-async def test_start_job_append_job_urls_to_queue(
+async def test_run_job_append_job_urls_to_queue(
     conf: CrawlerConfig,
     pg_client: Connection,
     with_user_token: str,
@@ -25,7 +25,7 @@ async def test_start_job_append_job_urls_to_queue(
     crawl_job = await create_crawl_job(
         job_service=job_service, token=with_user_token, urls=urls
     )
-    await job_service.start_job(token=with_user_token, job_id=crawl_job.job_id)
+    await job_service.run_job(token=with_user_token, job_id=crawl_job.job_id)
 
     worker = PGCrawlJobWorker(conf)
 
@@ -43,7 +43,7 @@ async def test_start_job_append_job_urls_to_queue(
     await worker.cancel()
 
 
-async def test_start_job_changes_job_status_to_running(
+async def test_run_job_changes_job_status_to_running(
     conf: CrawlerConfig,
     pg_client: Connection,
     with_user_token: str,
@@ -69,7 +69,7 @@ async def test_start_job_changes_job_status_to_running(
 
     await wait_for_condition(lambda: cond('pending'), timeout=5)
 
-    await job_service.start_job(token=with_user_token, job_id=crawl_job.job_id)
+    await job_service.run_job(token=with_user_token, job_id=crawl_job.job_id)
 
     worker = PGCrawlJobWorker(conf)
 
@@ -107,7 +107,7 @@ async def test_crawl_job_worker_crawls_url(
         job_service=job_service, token=with_user_token, urls=urls
     )
 
-    await job_service.start_job(token=with_user_token, job_id=crawl_job.job_id)
+    await job_service.run_job(token=with_user_token, job_id=crawl_job.job_id)
 
     worker = PGCrawlJobWorker(conf)
 
@@ -158,7 +158,7 @@ async def test_crawl_job_worker_crawls_reset_all_urls(
 
     assert date_created is not None
 
-    await job_service.start_job(token=with_user_token, job_id=crawl_job.job_id)
+    await job_service.run_job(token=with_user_token, job_id=crawl_job.job_id)
 
     worker = PGCrawlJobWorker(conf)
 
@@ -200,7 +200,7 @@ async def test_crawler_should_report_error_and_discard_after_3_attempts(
         job_service=job_service, token=with_user_token, urls=urls
     )
 
-    await job_service.start_job(token=with_user_token, job_id=crawl_job.job_id)
+    await job_service.run_job(token=with_user_token, job_id=crawl_job.job_id)
 
     worker = PGCrawlJobWorker(conf)
 

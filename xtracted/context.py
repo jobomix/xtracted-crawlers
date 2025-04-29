@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 from uuid import UUID
 
+from asyncpg import Connection
 from pydantic import HttpUrl
 from xtracted_common.model import CrawlJobUrlStatus
 
@@ -69,6 +70,15 @@ class PostgresCrawlSyncer(CrawlSyncer):
         self.config = config
         self.crawlers_service = PostgresCrawlersService(config)
 
+    async def update_last_fetched_url(
+        self, conn: Connection, user_id: UUID, job_id: int
+    ) -> None:
+        await conn.execute(
+            """insert into running_jobs(user_id,job_id,job_status,last_fetched_url) values($1, $2, 'running', now()) on conflict (user_id, job_id) do update set last_fetched_url=now()""",
+            user_id,
+            job_id,
+        )
+
     async def ack(self, msg_id: str | int) -> None:
         queue = await self.config.new_pgmq_client()
         conn = await self.config.new_db_client()
@@ -95,6 +105,9 @@ class PostgresCrawlSyncer(CrawlSyncer):
             )
             if retries >= 3:
                 await queue.archive('job_urls', msg_id=msg_id, conn=conn)
+                await self.update_last_fetched_url(
+                    conn, user_id=crawler_url.user_id, job_id=crawler_url.job_id
+                )
         except Exception as e:
             logger.error(e)
         finally:
@@ -131,8 +144,14 @@ class PostgresCrawlSyncer(CrawlSyncer):
                     crawler_url.user_id,
                     crawler_url.url_id,
                 )  # update urls
+                await conn.execute(
+                    'update api_requests set requests = requests - 1 where user_id = $1',
+                    crawler_url.user_id,
+                )
                 await queue.archive('job_urls', msg_id=msg_id, conn=conn)
-
+            await self.update_last_fetched_url(
+                conn, user_id=crawler_url.user_id, job_id=crawler_url.job_id
+            )
         except Exception as e:
             logger.error(e)
         finally:
